@@ -17,7 +17,7 @@ async def get_current_user(
 ) -> AuthenticatedUser:
     """Extract and validate the authenticated user from the JWT bearer token."""
     try:
-        return decode_access_token(credentials.credentials, settings.supabase_jwt_secret)
+        return decode_access_token(credentials.credentials, settings.supabase_jwt_secret, settings.supabase_url)
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
