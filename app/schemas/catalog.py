@@ -1,5 +1,7 @@
 from typing import Any
 
+from pydantic import Field
+
 from app.schemas.base import PharmaBaseModel
 
 
@@ -15,10 +17,10 @@ class CatalogSearchResultDTO(PharmaBaseModel):
     principle: str | None = None
     requires_prescription: bool
     package_label: str | None = None
-    units: int
-    tipologia: str | None = None
-    valore: int = 0
-    unita: str = ""
+    units_per_package: int = Field(validation_alias="units")
+    form_type: str | None = Field(default=None, validation_alias="tipologia")
+    dosage_value: int = Field(default=0, validation_alias="valore")
+    dosage_unit: str = Field(default="", validation_alias="unita")
     volume: str = ""
     availability: str
     catalog_code: str | None = None
