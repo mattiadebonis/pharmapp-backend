@@ -1,0 +1,15 @@
+.venv
+.env
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.pytest_cache
+.ruff_cache
+.mypy_cache
+*.sqlite3
+docker-compose*.yml
+fly.toml
+nginx/
