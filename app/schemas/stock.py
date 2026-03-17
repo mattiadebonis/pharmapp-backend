@@ -10,6 +10,7 @@ class StockDTO(PharmaBaseModel):
     tracked_package_id: UUID
     context_key: str
     stock_units: int
+    created_at: datetime | None = None
     updated_at: datetime
 
 

@@ -1,3 +1,5 @@
+from pydantic import Field
+
 from app.schemas.base import PharmaBaseModel
 from app.schemas.cabinet import CabinetDTO, CabinetMembershipDTO
 from app.schemas.custom_filter import CustomFilterDTO
@@ -17,9 +19,9 @@ from app.schemas.therapy import TherapyWithDosesDTO
 class NotificationLockDTO(PharmaBaseModel):
     id: str
     cabinet_id: str
-    lock_key: str
-    expires_at: str
-    created_at: str
+    device_id: str = Field(validation_alias="lock_key")
+    expires_at: str | None = None
+    locked_at: str = Field(validation_alias="created_at")
 
 
 class BootstrapResponse(PharmaBaseModel):
