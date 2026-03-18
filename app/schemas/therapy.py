@@ -49,7 +49,7 @@ class TherapyWithDosesDTO(TherapyDTO):
 
 
 class TherapyDoseInput(PharmaBaseModel):
-    time: str  # HH:MM:SS format — internal DB name
+    time: str = Field(validation_alias="time_of_day")  # iOS sends time_of_day, DB column is time
     amount: float
 
 
