@@ -8,31 +8,24 @@ from app.schemas.base import PharmaBaseModel
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
-TrackingMode = Literal["passive", "active"]
+Platform = Literal["ios", "android"]
 
 
 # ---------------------------------------------------------------------------
 # DTO – full representation returned by the API
 # ---------------------------------------------------------------------------
-class UserSettingsDTO(PharmaBaseModel):
+class DeviceTokenDTO(PharmaBaseModel):
+    id: UUID
     user_id: UUID
-    catalog_country: str | None = None
-    default_refill_threshold: int | None = None
-    default_tracking_mode: TrackingMode = "passive"
-    default_snooze_minutes: int = 10
-    grace_minutes: int = 15
-    notify_caregivers: bool = True
+    token: str
+    platform: Platform
     created_at: datetime
     updated_at: datetime
 
 
 # ---------------------------------------------------------------------------
-# Update request – every field optional
+# Create request
 # ---------------------------------------------------------------------------
-class UserSettingsUpdateRequest(PharmaBaseModel):
-    catalog_country: str | None = None
-    default_refill_threshold: int | None = None
-    default_tracking_mode: TrackingMode | None = None
-    default_snooze_minutes: int | None = None
-    grace_minutes: int | None = None
-    notify_caregivers: bool | None = None
+class DeviceTokenCreateRequest(PharmaBaseModel):
+    token: str
+    platform: Platform

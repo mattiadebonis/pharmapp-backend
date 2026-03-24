@@ -8,23 +8,20 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.routers import (
-    adherence,
+    activity_logs,
     bootstrap,
-    cabinets,
+    caregivers,
     catalog,
-    custom_filters,
+    device_tokens,
     doctors,
     dose_events,
-    entries,
+    dosing_schedules,
     health,
-    logs,
-    medicines,
-    monitoring,
-    operations,
-    people,
+    medications,
+    prescriptions,
+    profiles,
     settings,
-    stocks,
-    therapies,
+    supplies,
 )
 
 logger = logging.getLogger("pharmapp")
@@ -34,17 +31,17 @@ logger = logging.getLogger("pharmapp")
 async def lifespan(app: FastAPI):
     app_settings = get_settings()
     logging.basicConfig(level=getattr(logging, app_settings.log_level.upper(), logging.INFO))
-    logger.info("PharmaApp backend starting (env=%s)", app_settings.environment)
+    logger.info("Pharma Reminder backend starting (env=%s)", app_settings.environment)
     yield
-    logger.info("PharmaApp backend shutting down")
+    logger.info("Pharma Reminder backend shutting down")
 
 
 def create_app() -> FastAPI:
     app_settings = get_settings()
 
     app = FastAPI(
-        title="PharmaApp API",
-        version="0.1.0",
+        title="Pharma Reminder API",
+        version="2.0.0",
         lifespan=lifespan,
     )
 
@@ -70,24 +67,21 @@ def create_app() -> FastAPI:
             },
         )
 
-    # Routers
+    # Routers — v2 (Pharma Reminder)
     app.include_router(health.router)
-    app.include_router(bootstrap.router, prefix="/v1")
-    app.include_router(catalog.router, prefix="/v1")
-    app.include_router(settings.router, prefix="/v1")
-    app.include_router(people.router, prefix="/v1")
-    app.include_router(doctors.router, prefix="/v1")
-    app.include_router(cabinets.router, prefix="/v1")
-    app.include_router(custom_filters.router, prefix="/v1")
-    app.include_router(medicines.router, prefix="/v1")
-    app.include_router(entries.router, prefix="/v1")
-    app.include_router(therapies.router, prefix="/v1")
-    app.include_router(operations.router, prefix="/v1")
-    app.include_router(stocks.router, prefix="/v1")
-    app.include_router(logs.router, prefix="/v1")
-    app.include_router(dose_events.router, prefix="/v1")
-    app.include_router(monitoring.router, prefix="/v1")
-    app.include_router(adherence.router, prefix="/v1")
+    app.include_router(bootstrap.router, prefix="/v2")
+    app.include_router(catalog.router, prefix="/v2")
+    app.include_router(profiles.router, prefix="/v2")
+    app.include_router(doctors.router, prefix="/v2")
+    app.include_router(medications.router, prefix="/v2")
+    app.include_router(dosing_schedules.router, prefix="/v2")
+    app.include_router(supplies.router, prefix="/v2")
+    app.include_router(prescriptions.router, prefix="/v2")
+    app.include_router(dose_events.router, prefix="/v2")
+    app.include_router(settings.router, prefix="/v2")
+    app.include_router(caregivers.router, prefix="/v2")
+    app.include_router(activity_logs.router, prefix="/v2")
+    app.include_router(device_tokens.router, prefix="/v2")
 
     return app
 

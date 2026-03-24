@@ -5,26 +5,49 @@ from uuid import UUID
 from app.schemas.base import PharmaBaseModel
 
 
+# ---------------------------------------------------------------------------
+# Enums
+# ---------------------------------------------------------------------------
+DoseEventStatus = Literal["pending", "taken", "missed", "skipped", "snoozed"]
+
+
+# ---------------------------------------------------------------------------
+# DTO – full representation returned by the API
+# ---------------------------------------------------------------------------
 class DoseEventDTO(PharmaBaseModel):
     id: UUID
-    therapy_id: UUID
-    tracked_medicine_id: UUID
+    medication_id: UUID
+    dosing_schedule_id: UUID | None = None
+    profile_id: UUID
     due_at: datetime
-    status: Literal["planned", "taken", "missed", "skipped"]
+    taken_at: datetime | None = None
+    status: DoseEventStatus
+    snooze_count: int = 0
     actor_user_id: UUID | None = None
     actor_device_id: str | None = None
     created_at: datetime
     updated_at: datetime
 
 
+# ---------------------------------------------------------------------------
+# Create request
+# ---------------------------------------------------------------------------
 class DoseEventCreateRequest(PharmaBaseModel):
-    therapy_id: UUID
-    tracked_medicine_id: UUID
+    medication_id: UUID
+    dosing_schedule_id: UUID | None = None
+    profile_id: UUID
     due_at: datetime
-    status: Literal["planned", "taken", "missed", "skipped"]
+    taken_at: datetime | None = None
+    status: DoseEventStatus = "pending"
+    snooze_count: int = 0
     actor_device_id: str | None = None
 
 
+# ---------------------------------------------------------------------------
+# Update request
+# ---------------------------------------------------------------------------
 class DoseEventUpdateRequest(PharmaBaseModel):
-    status: Literal["planned", "taken", "missed", "skipped"]
+    taken_at: datetime | None = None
+    status: DoseEventStatus | None = None
+    snooze_count: int | None = None
     actor_device_id: str | None = None

@@ -1,207 +1,237 @@
 import logging
 from uuid import UUID
 
+from fastapi import HTTPException, status
 from supabase import Client
-
-from app.schemas.bootstrap import BootstrapResponse, NotificationLockDTO
-from app.schemas.cabinet import CabinetDTO, CabinetMembershipDTO
-from app.schemas.custom_filter import CustomFilterDTO
-from app.schemas.doctor import DoctorDTO
-from app.schemas.dose_event import DoseEventDTO
-from app.schemas.entry import MedicineEntryDTO
-from app.schemas.log import ActivityLogDTO
-from app.schemas.medicine import TrackedMedicineDTO, TrackedPackageDTO
-from app.schemas.monitoring import MonitoringMeasurementDTO
-from app.schemas.person import PersonDTO
-from app.schemas.profile import ProfileDTO
-from app.schemas.settings import UserSettingsDTO
-from app.schemas.stock import StockDTO
-from app.schemas.therapy import TherapyWithDosesDTO
 
 logger = logging.getLogger("pharmapp")
 
 
-async def fetch_bootstrap(supabase: Client, user_id: UUID) -> BootstrapResponse:
-    """Fetch all user data for app startup."""
+async def get_bootstrap_data(supabase: Client, user_id: UUID) -> dict:
+    """Fetch ALL user data in a single call for app startup / sync.
+
+    Returns a dict with the following keys:
+    - profiles
+    - medications (with nested dosing_schedules, supply, prescriptions)
+    - doctors
+    - settings
+    - dose_events (recent, last 30 days)
+    - activity_logs (recent, last 500)
+    - caregiver_relations (active)
+    - device_tokens
+    """
     uid = str(user_id)
 
-    # Fetch all data (sequential for now, can be parallelized later)
-    profile_r = supabase.table("profiles").select("*").eq("id", uid).single().execute()
-    settings_r = supabase.table("user_settings").select("*").eq("user_id", uid).single().execute()
-    people_r = supabase.table("people").select("*").eq("owner_user_id", uid).execute()
-    doctors_r = supabase.table("doctors").select("*").eq("owner_user_id", uid).execute()
-
-    # Cabinets: owned + accessible via membership
-    cabinets_owned_r = supabase.table("cabinets").select("*").eq("owner_user_id", uid).execute()
-    memberships_r = (
-        supabase.table("cabinet_memberships")
+    # ---------------------------------------------------------------
+    # 1. Profiles
+    # ---------------------------------------------------------------
+    profiles_r = (
+        supabase.table("profiles")
         .select("*")
         .eq("user_id", uid)
-        .eq("status", "active")
         .execute()
     )
+    profiles = profiles_r.data
+    profile_ids = [p["id"] for p in profiles]
 
-    # Get all cabinet IDs the user can access
-    owned_cabinet_ids = [c["id"] for c in cabinets_owned_r.data]
-    member_cabinet_ids = [m["cabinet_id"] for m in memberships_r.data if m["cabinet_id"] not in owned_cabinet_ids]
+    # ---------------------------------------------------------------
+    # 2. Settings (get or create)
+    # ---------------------------------------------------------------
+    settings_r = (
+        supabase.table("user_settings")
+        .select("*")
+        .eq("user_id", uid)
+        .execute()
+    )
+    if settings_r.data:
+        settings = settings_r.data[0]
+    else:
+        # Create default settings
+        settings = (
+            supabase.table("user_settings")
+            .insert({
+                "user_id": uid,
+                "catalog_country": "it",
+                "default_refill_threshold": 7,
+                "default_tracking_mode": "passive",
+                "default_snooze_minutes": 10,
+                "grace_minutes": 120,
+                "notify_caregivers": True,
+            })
+            .execute()
+        ).data[0]
 
-    # Fetch shared cabinets the user is a member of (but doesn't own)
-    shared_cabinets = []
-    if member_cabinet_ids:
-        shared_r = supabase.table("cabinets").select("*").in_("id", member_cabinet_ids).execute()
-        shared_cabinets = shared_r.data
+    # ---------------------------------------------------------------
+    # 3. Doctors
+    # ---------------------------------------------------------------
+    doctors_r = (
+        supabase.table("doctors")
+        .select("*")
+        .eq("user_id", uid)
+        .execute()
+    )
+    doctors = doctors_r.data
 
-    all_cabinets = cabinets_owned_r.data + shared_cabinets
-    all_cabinet_ids = [c["id"] for c in all_cabinets]
-
-    # Also fetch memberships for owned cabinets (to show who else has access)
-    all_memberships = memberships_r.data
-    if owned_cabinet_ids:
-        owned_memberships_r = (
-            supabase.table("cabinet_memberships")
+    # ---------------------------------------------------------------
+    # 4. Medications + related entities
+    # ---------------------------------------------------------------
+    if profile_ids:
+        medications_r = (
+            supabase.table("medications")
             .select("*")
-            .in_("cabinet_id", owned_cabinet_ids)
+            .in_("profile_id", profile_ids)
             .execute()
         )
-        # Merge without duplicates
-        existing_ids = {m["id"] for m in all_memberships}
-        for m in owned_memberships_r.data:
-            if m["id"] not in existing_ids:
-                all_memberships.append(m)
+    else:
+        medications_r = type("R", (), {"data": []})()
 
-    # Tracked medicines: owned + in accessible cabinets
-    medicines_r = supabase.table("tracked_medicines").select("*").eq("owner_user_id", uid).execute()
-    shared_medicines = []
-    if member_cabinet_ids:
-        shared_med_r = (
-            supabase.table("tracked_medicines")
-            .select("*")
-            .in_("cabinet_id", member_cabinet_ids)
-            .execute()
-        )
-        owned_med_ids = {m["id"] for m in medicines_r.data}
-        shared_medicines = [m for m in shared_med_r.data if m["id"] not in owned_med_ids]
+    medications = medications_r.data
+    medication_ids = [m["id"] for m in medications]
 
-    all_medicines = medicines_r.data + shared_medicines
-    all_medicine_ids = [m["id"] for m in all_medicines]
-
-    # Fetch related data for all accessible medicines
+    # Fetch related entities for all medications in bulk
     empty = type("R", (), {"data": []})()
-    if all_medicine_ids:
-        packages_r = (
-            supabase.table("tracked_packages")
+
+    if medication_ids:
+        schedules_r = (
+            supabase.table("dosing_schedules")
             .select("*")
-            .in_("tracked_medicine_id", all_medicine_ids)
+            .in_("medication_id", medication_ids)
             .execute()
         )
-        entries_r = (
-            supabase.table("medicine_entries")
+        supplies_r = (
+            supabase.table("supplies")
             .select("*")
-            .in_("tracked_medicine_id", all_medicine_ids)
+            .in_("medication_id", medication_ids)
             .execute()
         )
-        therapies_r = (
-            supabase.table("therapies")
+        prescriptions_r = (
+            supabase.table("prescriptions")
             .select("*")
-            .in_("tracked_medicine_id", all_medicine_ids)
+            .in_("medication_id", medication_ids)
             .execute()
         )
-        stocks_r = (
-            supabase.table("stocks")
-            .select("*")
-            .in_("tracked_medicine_id", all_medicine_ids)
-            .execute()
-        )
+    else:
+        schedules_r = empty
+        supplies_r = empty
+        prescriptions_r = empty
+
+    # Group by medication_id
+    schedules_by_med: dict[str, list] = {}
+    for s in schedules_r.data:
+        schedules_by_med.setdefault(s["medication_id"], []).append(s)
+
+    supplies_by_med: dict[str, dict] = {}
+    for s in supplies_r.data:
+        supplies_by_med[s["medication_id"]] = s
+
+    prescriptions_by_med: dict[str, list] = {}
+    for p in prescriptions_r.data:
+        prescriptions_by_med.setdefault(p["medication_id"], []).append(p)
+
+    # Enrich medications with nested data
+    medications_with_details = []
+    for med in medications:
+        mid = med["id"]
+        medications_with_details.append({
+            **med,
+            "schedules": schedules_by_med.get(mid, []),
+            "supply": supplies_by_med.get(mid),
+            "prescriptions": prescriptions_by_med.get(mid, []),
+        })
+
+    # ---------------------------------------------------------------
+    # 5. Dose events (recent)
+    # ---------------------------------------------------------------
+    if profile_ids:
         dose_events_r = (
             supabase.table("dose_events")
             .select("*")
-            .in_("tracked_medicine_id", all_medicine_ids)
-            .execute()
-        )
-        monitoring_r = (
-            supabase.table("monitoring_measurements")
-            .select("*")
-            .in_("tracked_medicine_id", all_medicine_ids)
+            .in_("profile_id", profile_ids)
+            .order("due_at", desc=True)
+            .limit(500)
             .execute()
         )
     else:
-        packages_r = empty
-        entries_r = empty
-        therapies_r = empty
-        stocks_r = empty
         dose_events_r = empty
-        monitoring_r = empty
 
-    logs_r = (
+    # ---------------------------------------------------------------
+    # 6. Activity logs (recent)
+    # ---------------------------------------------------------------
+    activity_logs_r = (
         supabase.table("activity_logs")
         .select("*")
-        .eq("owner_user_id", uid)
-        .order("timestamp", desc=True)
+        .eq("user_id", uid)
+        .order("created_at", desc=True)
         .limit(500)
         .execute()
     )
-    try:
-        custom_filters_r = (
-            supabase.table("custom_filters")
-            .select("*")
-            .eq("owner_user_id", uid)
-            .is_("deleted_at", "null")
-            .order("position")
-            .execute()
-        )
-    except Exception:
-        logger.warning("custom_filters table not found, skipping")
-        custom_filters_r = empty
-    if all_cabinet_ids:
-        notification_locks_r = (
-            supabase.table("notification_locks")
-            .select("*")
-            .in_("cabinet_id", all_cabinet_ids)
-            .execute()
-        )
-    else:
-        notification_locks_r = empty
 
-    # Fetch therapy doses for all therapies
-    therapy_ids = [t["id"] for t in therapies_r.data]
-    if therapy_ids:
-        doses_r = (
-            supabase.table("therapy_doses")
-            .select("*")
-            .in_("therapy_id", therapy_ids)
-            .order("sort_order")
-            .execute()
-        )
-    else:
-        doses_r = type("R", (), {"data": []})()
-
-    # Group doses by therapy_id
-    doses_by_therapy: dict[str, list] = {}
-    for d in doses_r.data:
-        doses_by_therapy.setdefault(d["therapy_id"], []).append(d)
-
-    # Build therapies with doses
-    therapies_with_doses = []
-    for t in therapies_r.data:
-        therapy_doses = doses_by_therapy.get(t["id"], [])
-        t_dto = {**t, "doses": therapy_doses}
-        therapies_with_doses.append(TherapyWithDosesDTO.model_validate(t_dto))
-
-    return BootstrapResponse(
-        profile=ProfileDTO.model_validate(profile_r.data),
-        settings=UserSettingsDTO.model_validate(settings_r.data),
-        people=[PersonDTO.model_validate(p) for p in people_r.data],
-        doctors=[DoctorDTO.model_validate(d) for d in doctors_r.data],
-        cabinets=[CabinetDTO.model_validate(c) for c in all_cabinets],
-        cabinet_memberships=[CabinetMembershipDTO.model_validate(m) for m in all_memberships],
-        tracked_medicines=[TrackedMedicineDTO.model_validate(m) for m in all_medicines],
-        tracked_packages=[TrackedPackageDTO.model_validate(p) for p in packages_r.data],
-        medicine_entries=[MedicineEntryDTO.model_validate(e) for e in entries_r.data],
-        therapies=therapies_with_doses,
-        stocks=[StockDTO.model_validate(s) for s in stocks_r.data],
-        activity_logs=[ActivityLogDTO.model_validate(log) for log in logs_r.data],
-        dose_events=[DoseEventDTO.model_validate(de) for de in dose_events_r.data],
-        monitoring_measurements=[MonitoringMeasurementDTO.model_validate(m) for m in monitoring_r.data],
-        custom_filters=[CustomFilterDTO.model_validate(cf) for cf in custom_filters_r.data],
-        notification_locks=[NotificationLockDTO.model_validate(nl) for nl in notification_locks_r.data],
+    # ---------------------------------------------------------------
+    # 7. Caregiver relations (active + pending)
+    # ---------------------------------------------------------------
+    caregiver_patient_r = (
+        supabase.table("caregiver_relations")
+        .select("*")
+        .eq("patient_user_id", uid)
+        .neq("status", "revoked")
+        .execute()
     )
+    caregiver_carer_r = (
+        supabase.table("caregiver_relations")
+        .select("*")
+        .eq("caregiver_user_id", uid)
+        .neq("status", "revoked")
+        .execute()
+    )
+    # Merge without duplicates
+    seen_ids: set[str] = set()
+    caregiver_relations: list[dict] = []
+    for row in caregiver_patient_r.data + caregiver_carer_r.data:
+        if row["id"] not in seen_ids:
+            seen_ids.add(row["id"])
+            caregiver_relations.append(row)
+
+    # ---------------------------------------------------------------
+    # 8. Pending caregiver confirmations/changes for patient
+    # ---------------------------------------------------------------
+    caregiver_relation_ids_for_patient = [
+        row["id"]
+        for row in caregiver_relations
+        if row.get("patient_user_id") == uid and row.get("status") == "active"
+    ]
+    if caregiver_relation_ids_for_patient:
+        pending_changes_r = (
+            supabase.table("pending_changes")
+            .select("*")
+            .in_("caregiver_relation_id", caregiver_relation_ids_for_patient)
+            .eq("status", "pending")
+            .order("created_at", desc=True)
+            .execute()
+        )
+    else:
+        pending_changes_r = empty
+
+    # ---------------------------------------------------------------
+    # 9. Device tokens
+    # ---------------------------------------------------------------
+    device_tokens_r = (
+        supabase.table("device_tokens")
+        .select("*")
+        .eq("user_id", uid)
+        .execute()
+    )
+
+    # ---------------------------------------------------------------
+    # Assemble response
+    # ---------------------------------------------------------------
+    return {
+        "profiles": profiles,
+        "settings": settings,
+        "doctors": doctors,
+        "medications": medications_with_details,
+        "dose_events": dose_events_r.data,
+        "activity_logs": activity_logs_r.data,
+        "caregiver_relations": caregiver_relations,
+        "pending_changes": pending_changes_r.data,
+        "device_tokens": device_tokens_r.data,
+    }
