@@ -11,6 +11,7 @@ dependencies = [
     "supabase>=2.12",
     "python-jose[cryptography]>=3.3",
     "httpx>=0.28",
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]

@@ -1,10 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
+from slowapi import Limiter
 from supabase import Client
 
 from app.auth.models import AuthenticatedUser
 from app.dependencies import get_current_user, get_supabase
+from app.middleware.rate_limit import limiter
 from app.schemas.caregiver import (
     CaregiverAcceptRequest,
     CaregiverInviteRequest,
@@ -44,7 +46,9 @@ async def list_relations_endpoint(
 
 
 @router.post("/invite", response_model=CaregiverRelationDTO, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
 async def create_invite_endpoint(
+    request: Request,
     data: CaregiverInviteRequest,
     user: AuthenticatedUser = Depends(get_current_user),
     supabase: Client = Depends(get_supabase),
@@ -53,7 +57,9 @@ async def create_invite_endpoint(
 
 
 @router.post("/accept", response_model=CaregiverRelationDTO)
+@limiter.limit("5/minute")
 async def accept_invite_endpoint(
+    request: Request,
     data: CaregiverAcceptRequest,
     user: AuthenticatedUser = Depends(get_current_user),
     supabase: Client = Depends(get_supabase),

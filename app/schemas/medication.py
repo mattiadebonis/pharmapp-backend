@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -27,6 +27,7 @@ class MedicationDTO(PharmaBaseModel):
     principle: str | None = None
     color: str | None = None
     category: MedicationCategory | None = None
+    start_date: date | None = None
     tracking_mode: TrackingMode = "passive"
     requires_prescription: bool = False
     is_paused: bool = False
@@ -50,6 +51,7 @@ class MedicationCreateRequest(PharmaBaseModel):
     principle: str | None = None
     color: str | None = None
     category: MedicationCategory | None = None
+    start_date: date | None = None
     tracking_mode: TrackingMode = "passive"
     requires_prescription: bool = False
     is_paused: bool = False
@@ -71,6 +73,7 @@ class MedicationUpdateRequest(PharmaBaseModel):
     principle: str | None = None
     color: str | None = None
     category: MedicationCategory | None = None
+    start_date: date | None = None
     tracking_mode: TrackingMode | None = None
     requires_prescription: bool | None = None
     is_paused: bool | None = None
