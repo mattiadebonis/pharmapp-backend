@@ -23,6 +23,7 @@ class DoctorDTO(PharmaBaseModel):
     secretary_phone: str | None = None
     secretary_schedule_json: dict[str, Any] | None = None
     prescription_message_template: str | None = None
+    profile_ids: list[UUID] = []
     created_at: datetime
     updated_at: datetime
 
@@ -43,6 +44,7 @@ class DoctorCreateRequest(PharmaBaseModel):
     secretary_phone: str | None = None
     secretary_schedule_json: dict[str, Any] | None = None
     prescription_message_template: str | None = None
+    profile_ids: list[UUID] = []
 
 
 # ---------------------------------------------------------------------------
@@ -61,3 +63,4 @@ class DoctorUpdateRequest(PharmaBaseModel):
     secretary_phone: str | None = None
     secretary_schedule_json: dict[str, Any] | None = None
     prescription_message_template: str | None = None
+    profile_ids: list[UUID] = []
