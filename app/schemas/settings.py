@@ -20,7 +20,7 @@ class UserSettingsDTO(PharmaBaseModel):
     default_refill_threshold: int | None = None
     default_tracking_mode: TrackingMode = "passive"
     default_snooze_minutes: int = 10
-    grace_minutes: int = 15
+    grace_minutes: int = 120
     notify_caregivers: bool = True
     created_at: datetime
     updated_at: datetime
