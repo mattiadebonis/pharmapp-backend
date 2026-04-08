@@ -4,10 +4,16 @@ from supabase import Client
 from app.schemas.catalog import CatalogPackageDTO, CatalogProductDTO, CatalogSearchResultDTO
 
 
-async def search_catalog(supabase: Client, country: str, query: str, limit: int = 40) -> list[CatalogSearchResultDTO]:
+async def search_catalog(
+    supabase: Client,
+    country: str,
+    query: str,
+    limit: int = 40,
+    include_homeopathic: bool = False,
+) -> list[CatalogSearchResultDTO]:
     """Search the catalog by name, generic name, principle, or package label."""
     pattern = f"*{query}*"
-    result = (
+    builder = (
         supabase.from_("catalog_search_v1")
         .select("*")
         .eq("country", country)
@@ -17,9 +23,10 @@ async def search_catalog(supabase: Client, country: str, query: str, limit: int 
             f"principle.ilike.{pattern},"
             f"package_label.ilike.{pattern}"
         )
-        .limit(limit)
-        .execute()
     )
+    if not include_homeopathic:
+        builder = builder.eq("is_homeopathic", False)
+    result = builder.limit(limit).execute()
     return [CatalogSearchResultDTO.model_validate(row) for row in result.data]
 
 

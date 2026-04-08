@@ -25,6 +25,12 @@ class CatalogSearchResultDTO(PharmaBaseModel):
     availability: str
     catalog_code: str | None = None
     catalog_snapshot: dict[str, Any] = {}
+    # New fields from CSV
+    link_fi: str | None = None
+    link_rcp: str | None = None
+    fornitura_code: str | None = None
+    codice_atc: str | None = None
+    is_homeopathic: bool | None = None
 
 
 class CatalogProductDTO(PharmaBaseModel):
@@ -47,6 +53,13 @@ class CatalogProductDTO(PharmaBaseModel):
     regulatory: dict[str, Any] = {}
     packages: list[dict[str, Any]] = []
     source_meta: dict[str, Any] | None = None
+    # New fields from CSV
+    link_fi: str | None = None
+    link_rcp: str | None = None
+    fornitura_code: str | None = None
+    codice_atc: str | None = None
+    is_homeopathic: bool | None = None
+    forme_distinte: list[str] = []
 
 
 class CatalogPackageDTO(PharmaBaseModel):
@@ -71,3 +84,8 @@ class CatalogPackageDTO(PharmaBaseModel):
     shortage_end_date: str | None = None
     availability: str | None = None
     source_meta: dict[str, Any] | None = None
+    # New fields from CSV
+    fornitura: str | None = None
+    fornitura_code: str | None = None
+    codice_atc: str | None = None
+    forma: str | None = None

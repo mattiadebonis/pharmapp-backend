@@ -16,10 +16,11 @@ async def catalog_search(
     country: Literal["it", "us"] = Query(...),
     q: str = Query(..., min_length=1),
     limit: int = Query(40, ge=1, le=100),
+    include_homeopathic: bool = Query(False),
     user: AuthenticatedUser = Depends(get_current_user),
     supabase: Client = Depends(get_supabase),
 ):
-    return await search_catalog(supabase, country, q, limit)
+    return await search_catalog(supabase, country, q, limit, include_homeopathic)
 
 
 @router.get("/products/{country}/{product_id}", response_model=CatalogProductDTO)
