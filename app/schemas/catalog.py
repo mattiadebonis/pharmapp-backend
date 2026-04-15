@@ -89,3 +89,4 @@ class CatalogPackageDTO(PharmaBaseModel):
     fornitura_code: str | None = None
     codice_atc: str | None = None
     forma: str | None = None
+    intake_method: str | None = None

@@ -3,8 +3,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query
 from supabase import Client
 
-from app.auth.models import AuthenticatedUser
-from app.dependencies import get_current_user, get_supabase
+from app.dependencies import get_supabase
 from app.schemas.catalog import CatalogPackageDTO, CatalogProductDTO, CatalogSearchResultDTO
 from app.services.catalog_service import fetch_package, fetch_product, search_catalog
 
@@ -17,7 +16,6 @@ async def catalog_search(
     q: str = Query(..., min_length=1),
     limit: int = Query(40, ge=1, le=100),
     include_homeopathic: bool = Query(False),
-    user: AuthenticatedUser = Depends(get_current_user),
     supabase: Client = Depends(get_supabase),
 ):
     return await search_catalog(supabase, country, q, limit, include_homeopathic)
@@ -27,7 +25,6 @@ async def catalog_search(
 async def catalog_product(
     country: Literal["it", "us"],
     product_id: str,
-    user: AuthenticatedUser = Depends(get_current_user),
     supabase: Client = Depends(get_supabase),
 ):
     return await fetch_product(supabase, country, product_id)
@@ -37,7 +34,6 @@ async def catalog_product(
 async def catalog_package(
     country: Literal["it", "us"],
     package_id: str,
-    user: AuthenticatedUser = Depends(get_current_user),
     supabase: Client = Depends(get_supabase),
 ):
     return await fetch_package(supabase, country, package_id)

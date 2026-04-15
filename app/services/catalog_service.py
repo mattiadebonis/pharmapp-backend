@@ -32,7 +32,7 @@ async def search_catalog(
 
 async def fetch_product(supabase: Client, country: str, product_id: str) -> CatalogProductDTO:
     """Fetch a catalog product by ID using the RPC function."""
-    result = supabase.rpc("fetch_catalog_product_v1", {"country": country, "product_id": product_id}).execute()
+    result = supabase.rpc("fetch_catalog_product_v1", {"p_country": country, "p_product_id": product_id}).execute()
     if not result.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -43,7 +43,7 @@ async def fetch_product(supabase: Client, country: str, product_id: str) -> Cata
 
 async def fetch_package(supabase: Client, country: str, package_id: str) -> CatalogPackageDTO:
     """Fetch a catalog package by ID using the RPC function."""
-    result = supabase.rpc("fetch_catalog_package_v1", {"country": country, "package_id": package_id}).execute()
+    result = supabase.rpc("fetch_catalog_package_v1", {"p_country": country, "p_package_id": package_id}).execute()
     if not result.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

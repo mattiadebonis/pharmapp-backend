@@ -28,6 +28,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from parsers.aifa_package_parser import parse_denominazione_package
+from parsers.intake_method_classifier import classify_intake_method
 
 
 # ─── Fornitura Classification ────────────────────────────────────────────────
@@ -188,6 +189,7 @@ def parse_csv(file_path: Path, stats: Stats) -> tuple[list[dict], dict[str, dict
                 "strength_text": parsed.strength_text or None,
                 "volume_value": parsed.volume_value,
                 "volume_unit": parsed.volume_unit or None,
+                "intake_method": classify_intake_method(forma),
             }
             package_rows.append(pkg)
             stats.packages_ok += 1
@@ -291,17 +293,32 @@ def _load_env() -> tuple[str, str]:
     return url, key
 
 
-def upsert_batch(supabase, table: str, rows: list[dict[str, Any]], key_column: str) -> int:
+def upsert_batch(supabase, table: str, rows: list[dict[str, Any]], key_column: str, max_retries: int = 3) -> int:
     """Upsert a batch of rows into a Supabase table. Returns count of rows upserted."""
     if not rows:
         return 0
-    result = supabase.table(table).upsert(rows, on_conflict=key_column).execute()
-    return len(result.data) if result.data else 0
+    for attempt in range(max_retries):
+        try:
+            result = supabase.table(table).upsert(rows, on_conflict=key_column).execute()
+            return len(result.data) if result.data else 0
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt
+                print(f"    RETRY {attempt + 1}/{max_retries} for {table} ({len(rows)} rows): {e!r} — waiting {wait}s")
+                time.sleep(wait)
+            else:
+                raise
 
 
 # ─── Main Import ─────────────────────────────────────────────────────────────
 
-def run_import(file_path: Path, dry_run: bool = False, batch_size: int = 500) -> Stats:
+def run_import(
+    file_path: Path,
+    dry_run: bool = False,
+    batch_size: int = 500,
+    skip_products: bool = False,
+    start_offset: int = 0,
+) -> Stats:
     """Run the full AIFA CSV import."""
     stats = Stats()
 
@@ -323,23 +340,32 @@ def run_import(file_path: Path, dry_run: bool = False, batch_size: int = 500) ->
     print("\nConnessione a Supabase...")
     url, key = _load_env()
 
-    from supabase import create_client
-    supabase = create_client(url, key)
+    from supabase import ClientOptions, create_client
+    supabase = create_client(
+        url,
+        key,
+        options=ClientOptions(postgrest_client_timeout=300),
+    )
 
     # 1. Products (must go first due to FK)
-    print(f"\nUpserting {len(product_rows)} prodotti (batch={batch_size})...")
-    t1 = time.time()
-    for i in range(0, len(product_rows), batch_size):
-        batch = product_rows[i : i + batch_size]
-        upsert_batch(supabase, "catalog_it_products", batch, "cod_farmaco")
-        done = min(i + batch_size, len(product_rows))
-        print(f"  prodotti: {done}/{len(product_rows)}")
-    print(f"  Prodotti completati in {time.time() - t1:.1f}s")
+    if skip_products:
+        print(f"\n--packages-only: skip upsert dei {len(product_rows)} prodotti")
+    else:
+        print(f"\nUpserting {len(product_rows)} prodotti (batch={batch_size})...")
+        t1 = time.time()
+        for i in range(0, len(product_rows), batch_size):
+            batch = product_rows[i : i + batch_size]
+            upsert_batch(supabase, "catalog_it_products", batch, "cod_farmaco")
+            done = min(i + batch_size, len(product_rows))
+            print(f"  prodotti: {done}/{len(product_rows)}")
+        print(f"  Prodotti completati in {time.time() - t1:.1f}s")
 
     # 2. Packages
-    print(f"\nUpserting {len(package_rows)} confezioni (batch={batch_size})...")
+    if start_offset > 0:
+        print(f"\nStart offset: {start_offset} — riprendo upsert da quella riga")
+    print(f"\nUpserting {len(package_rows) - start_offset} confezioni (batch={batch_size})...")
     t2 = time.time()
-    for i in range(0, len(package_rows), batch_size):
+    for i in range(start_offset, len(package_rows), batch_size):
         batch = package_rows[i : i + batch_size]
         upsert_batch(supabase, "catalog_it_packages", batch, "codice_aic")
         done = min(i + batch_size, len(package_rows))
@@ -347,21 +373,24 @@ def run_import(file_path: Path, dry_run: bool = False, batch_size: int = 500) ->
     print(f"  Confezioni completate in {time.time() - t2:.1f}s")
 
     # 3. Ingredients (delete + insert by product)
-    print(f"\nInserting {len(ingredient_rows)} ingredienti (batch={batch_size})...")
-    t3 = time.time()
-    # Get unique product IDs to delete old ingredients
-    product_ids = list({r["cod_farmaco"] for r in ingredient_rows})
-    for i in range(0, len(product_ids), batch_size):
-        batch_ids = product_ids[i : i + batch_size]
-        supabase.table("catalog_it_ingredients").delete().in_("cod_farmaco", batch_ids).execute()
+    if skip_products:
+        print(f"\n--packages-only: skip ingredienti ({len(ingredient_rows)} righe)")
+    else:
+        print(f"\nInserting {len(ingredient_rows)} ingredienti (batch={batch_size})...")
+        t3 = time.time()
+        # Get unique product IDs to delete old ingredients
+        product_ids = list({r["cod_farmaco"] for r in ingredient_rows})
+        for i in range(0, len(product_ids), batch_size):
+            batch_ids = product_ids[i : i + batch_size]
+            supabase.table("catalog_it_ingredients").delete().in_("cod_farmaco", batch_ids).execute()
 
-    # Insert in batches
-    for i in range(0, len(ingredient_rows), batch_size):
-        batch = ingredient_rows[i : i + batch_size]
-        supabase.table("catalog_it_ingredients").insert(batch).execute()
-        done = min(i + batch_size, len(ingredient_rows))
-        print(f"  ingredienti: {done}/{len(ingredient_rows)}")
-    print(f"  Ingredienti completati in {time.time() - t3:.1f}s")
+        # Insert in batches
+        for i in range(0, len(ingredient_rows), batch_size):
+            batch = ingredient_rows[i : i + batch_size]
+            supabase.table("catalog_it_ingredients").insert(batch).execute()
+            done = min(i + batch_size, len(ingredient_rows))
+            print(f"  ingredienti: {done}/{len(ingredient_rows)}")
+        print(f"  Ingredienti completati in {time.time() - t3:.1f}s")
 
     total_elapsed = time.time() - t0
     print(f"\nImport totale completato in {total_elapsed:.1f}s")
@@ -381,6 +410,17 @@ def main() -> int:
     )
     parser.add_argument("--dry-run", action="store_true", help="Parse only, no DB writes")
     parser.add_argument("--batch-size", type=int, default=500, help="Upsert batch size (default: 500)")
+    parser.add_argument(
+        "--packages-only",
+        action="store_true",
+        help="Upsert solo confezioni (skip prodotti e ingredienti)",
+    )
+    parser.add_argument(
+        "--start-offset",
+        type=int,
+        default=0,
+        help="Riprendi upsert confezioni da questo indice (per riprendere import interrotti)",
+    )
     args = parser.parse_args()
 
     if not args.file.exists():
@@ -388,10 +428,19 @@ def main() -> int:
         return 1
 
     print(f"AIFA CSV Import — file: {args.file}")
-    print(f"  dry_run={args.dry_run}, batch_size={args.batch_size}")
+    print(
+        f"  dry_run={args.dry_run}, batch_size={args.batch_size}, "
+        f"packages_only={args.packages_only}, start_offset={args.start_offset}"
+    )
     print()
 
-    run_import(args.file, dry_run=args.dry_run, batch_size=args.batch_size)
+    run_import(
+        args.file,
+        dry_run=args.dry_run,
+        batch_size=args.batch_size,
+        skip_products=args.packages_only,
+        start_offset=args.start_offset,
+    )
     return 0
 
 
