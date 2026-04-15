@@ -125,7 +125,7 @@ async def create_dose_event(supabase: Client, user_id: UUID, data) -> dict:
         if payload.get(uuid_field):
             payload[uuid_field] = str(payload[uuid_field])
     # Convert datetime fields to ISO strings
-    for dt_field in ("due_at", "taken_at"):
+    for dt_field in ("due_at", "taken_at", "auto_registered_at", "user_corrected_at"):
         if dt_field in payload and hasattr(payload[dt_field], "isoformat"):
             payload[dt_field] = payload[dt_field].isoformat()
     payload["actor_user_id"] = str(user_id)
@@ -149,7 +149,7 @@ async def update_dose_event(
     if not payload:
         return await get_dose_event(supabase, user_id, event_id)
     # Convert datetime fields
-    for dt_field in ("taken_at",):
+    for dt_field in ("taken_at", "auto_registered_at", "user_corrected_at"):
         if dt_field in payload and hasattr(payload[dt_field], "isoformat"):
             payload[dt_field] = payload[dt_field].isoformat()
     payload["actor_user_id"] = str(user_id)

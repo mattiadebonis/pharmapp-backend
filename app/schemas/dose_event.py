@@ -25,6 +25,8 @@ class DoseEventDTO(PharmaBaseModel):
     snooze_count: int = 0
     actor_user_id: UUID | None = None
     actor_device_id: str | None = None
+    auto_registered_at: datetime | None = None
+    user_corrected_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -41,6 +43,8 @@ class DoseEventCreateRequest(PharmaBaseModel):
     status: DoseEventStatus = "pending"
     snooze_count: int = 0
     actor_device_id: str | None = None
+    auto_registered_at: datetime | None = None
+    user_corrected_at: datetime | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -51,3 +55,5 @@ class DoseEventUpdateRequest(PharmaBaseModel):
     status: DoseEventStatus | None = None
     snooze_count: int | None = None
     actor_device_id: str | None = None
+    auto_registered_at: datetime | None = None
+    user_corrected_at: datetime | None = None

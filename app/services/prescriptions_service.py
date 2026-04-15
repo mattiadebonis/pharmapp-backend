@@ -54,7 +54,7 @@ async def create_prescription(
     payload = data.model_dump(exclude_none=True)
     payload["medication_id"] = str(medication_id)
     # Convert date fields to ISO strings if they are date objects
-    for date_field in ("issued_date", "expiry_date"):
+    for date_field in ("issued_date", "expiry_date", "requested_at"):
         if date_field in payload and hasattr(payload[date_field], "isoformat"):
             payload[date_field] = payload[date_field].isoformat()
     # Convert doctor_id to string if present
@@ -97,7 +97,7 @@ async def update_prescription(
     if not payload:
         return await get_prescription(supabase, user_id, medication_id, prescription_id)
     # Convert date fields to ISO strings if they are date objects
-    for date_field in ("issued_date", "expiry_date"):
+    for date_field in ("issued_date", "expiry_date", "requested_at"):
         if date_field in payload and hasattr(payload[date_field], "isoformat"):
             payload[date_field] = payload[date_field].isoformat()
     if "doctor_id" in payload and payload["doctor_id"]:

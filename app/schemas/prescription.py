@@ -9,6 +9,7 @@ from app.schemas.base import PharmaBaseModel
 # Enums
 # ---------------------------------------------------------------------------
 PrescriptionType = Literal["ricetta_rossa", "ricetta_bianca", "specialist"]
+PrescriptionRequestStatus = Literal["received", "requested", "expired"]
 
 
 # ---------------------------------------------------------------------------
@@ -24,6 +25,8 @@ class PrescriptionDTO(PharmaBaseModel):
     total_packages: int | None = None
     remaining_packages: int | None = None
     notes: str | None = None
+    requested_at: datetime | None = None
+    request_status: PrescriptionRequestStatus = "received"
     created_at: datetime
     updated_at: datetime
 
@@ -40,6 +43,8 @@ class PrescriptionCreateRequest(PharmaBaseModel):
     total_packages: int | None = None
     remaining_packages: int | None = None
     notes: str | None = None
+    requested_at: datetime | None = None
+    request_status: PrescriptionRequestStatus | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -53,3 +58,5 @@ class PrescriptionUpdateRequest(PharmaBaseModel):
     total_packages: int | None = None
     remaining_packages: int | None = None
     notes: str | None = None
+    requested_at: datetime | None = None
+    request_status: PrescriptionRequestStatus | None = None
