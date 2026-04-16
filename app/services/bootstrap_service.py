@@ -110,10 +110,18 @@ async def get_bootstrap_data(supabase: Client, user_id: UUID) -> dict:
             .in_("medication_id", medication_ids)
             .execute()
         )
+        prescription_requests_r = (
+            supabase.table("prescription_requests")
+            .select("*")
+            .in_("medication_id", medication_ids)
+            .order("sent_at", desc=True)
+            .execute()
+        )
     else:
         schedules_r = empty
         supplies_r = empty
         prescriptions_r = empty
+        prescription_requests_r = empty
 
     # Group by medication_id
     schedules_by_med: dict[str, list] = {}
@@ -234,4 +242,5 @@ async def get_bootstrap_data(supabase: Client, user_id: UUID) -> dict:
         "caregiver_relations": caregiver_relations,
         "pending_changes": pending_changes_r.data,
         "device_tokens": device_tokens_r.data,
+        "prescription_requests": prescription_requests_r.data,
     }

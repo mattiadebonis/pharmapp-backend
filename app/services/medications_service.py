@@ -84,6 +84,8 @@ async def create_medication(supabase: Client, user_id: UUID, data) -> dict:
             detail={"error": {"code": "forbidden", "message": "Profile does not belong to user"}},
         )
     payload["profile_id"] = str(profile_id)
+    if payload.get("prescribing_doctor_id"):
+        payload["prescribing_doctor_id"] = str(payload["prescribing_doctor_id"])
     result = supabase.table("medications").insert(payload).execute()
     return result.data[0]
 
@@ -139,6 +141,10 @@ async def update_medication(
     payload = data.model_dump(exclude_none=True)
     if not payload:
         return await get_medication(supabase, user_id, medication_id)
+    if "prescribing_doctor_id" in payload and payload["prescribing_doctor_id"]:
+        payload["prescribing_doctor_id"] = str(payload["prescribing_doctor_id"])
+    if "profile_id" in payload and payload["profile_id"]:
+        payload["profile_id"] = str(payload["profile_id"])
     result = (
         supabase.table("medications")
         .update(payload)

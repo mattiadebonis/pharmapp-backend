@@ -36,6 +36,7 @@ class MedicationDTO(PharmaBaseModel):
     image_url: str | None = None
     notes: str | None = None
     catalog_snapshot: dict[str, Any] | None = None
+    prescribing_doctor_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -60,6 +61,7 @@ class MedicationCreateRequest(PharmaBaseModel):
     image_url: str | None = None
     notes: str | None = None
     catalog_snapshot: dict[str, Any] | None = None
+    prescribing_doctor_id: UUID | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -82,6 +84,7 @@ class MedicationUpdateRequest(PharmaBaseModel):
     image_url: str | None = None
     notes: str | None = None
     catalog_snapshot: dict[str, Any] | None = None
+    prescribing_doctor_id: UUID | None = None
 
 
 # ---------------------------------------------------------------------------
