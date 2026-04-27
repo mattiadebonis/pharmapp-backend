@@ -27,6 +27,7 @@ class DoseEventDTO(PharmaBaseModel):
     actor_device_id: str | None = None
     auto_registered_at: datetime | None = None
     user_corrected_at: datetime | None = None
+    note: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -45,6 +46,7 @@ class DoseEventCreateRequest(PharmaBaseModel):
     actor_device_id: str | None = None
     auto_registered_at: datetime | None = None
     user_corrected_at: datetime | None = None
+    note: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -57,3 +59,4 @@ class DoseEventUpdateRequest(PharmaBaseModel):
     actor_device_id: str | None = None
     auto_registered_at: datetime | None = None
     user_corrected_at: datetime | None = None
+    note: str | None = None

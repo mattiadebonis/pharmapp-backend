@@ -15,12 +15,14 @@ class CatalogSearchResultDTO(PharmaBaseModel):
     brand_name: str | None = None
     generic_name: str | None = None
     principle: str | None = None
+    manufacturer_name: str | None = None
     requires_prescription: bool
     package_label: str | None = None
     units_per_package: int = Field(validation_alias="units")
     form_type: str | None = Field(default=None, validation_alias="tipologia")
     dosage_value: int = Field(default=0, validation_alias="valore")
     dosage_unit: str = Field(default="", validation_alias="unita")
+    strength_text: str | None = None
     volume: str = ""
     availability: str
     catalog_code: str | None = None
