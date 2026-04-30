@@ -6,7 +6,6 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from supabase import Client
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -124,7 +123,14 @@ async def accept_invite(
         )
     relation = row.data[0]
 
-    expires_at = datetime.fromisoformat(relation["invite_expires_at"].replace("Z", "+00:00"))
+    raw_expires = relation.get("invite_expires_at")
+    try:
+        expires_at = datetime.fromisoformat(str(raw_expires).replace("Z", "+00:00"))
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"error": {"code": "invalid_invite", "message": "Invite metadata corrupt"}},
+        ) from exc
     if datetime.now(timezone.utc) > expires_at:
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
@@ -139,10 +145,12 @@ async def accept_invite(
 
     result = (
         supabase.table("caregiver_relations")
-        .update({
-            "caregiver_user_id": str(caregiver_user_id),
-            "status": "patient_confirmation",
-        })
+        .update(
+            {
+                "caregiver_user_id": str(caregiver_user_id),
+                "status": "patient_confirmation",
+            }
+        )
         .eq("id", relation["id"])
         .execute()
     )
@@ -170,12 +178,7 @@ async def confirm_invite(
             detail={"error": {"code": "not_found", "message": "Relation not awaiting patient confirmation"}},
         )
 
-    result = (
-        supabase.table("caregiver_relations")
-        .update({"status": "active"})
-        .eq("id", str(relation_id))
-        .execute()
-    )
+    result = supabase.table("caregiver_relations").update({"status": "active"}).eq("id", str(relation_id)).execute()
     return result.data[0]
 
 
@@ -200,12 +203,7 @@ async def reject_invite(
             detail={"error": {"code": "not_found", "message": "Relation not pending"}},
         )
 
-    result = (
-        supabase.table("caregiver_relations")
-        .update({"status": "rejected"})
-        .eq("id", str(relation_id))
-        .execute()
-    )
+    result = supabase.table("caregiver_relations").update({"status": "rejected"}).eq("id", str(relation_id)).execute()
     return result.data[0]
 
 
@@ -219,12 +217,7 @@ async def revoke_relation(
     Either the patient or the caregiver can revoke.
     """
     uid = str(user_id)
-    row = (
-        supabase.table("caregiver_relations")
-        .select("*")
-        .eq("id", str(relation_id))
-        .execute()
-    )
+    row = supabase.table("caregiver_relations").select("*").eq("id", str(relation_id)).execute()
     if not row.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -236,12 +229,7 @@ async def revoke_relation(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"error": {"code": "forbidden", "message": "Access denied"}},
         )
-    result = (
-        supabase.table("caregiver_relations")
-        .update({"status": "revoked"})
-        .eq("id", str(relation_id))
-        .execute()
-    )
+    result = supabase.table("caregiver_relations").update({"status": "revoked"}).eq("id", str(relation_id)).execute()
     return result.data[0]
 
 
@@ -263,34 +251,14 @@ async def list_relations(
     """
     uid = str(user_id)
     if role == "patient":
-        result = (
-            supabase.table("caregiver_relations")
-            .select("*")
-            .eq("patient_user_id", uid)
-            .execute()
-        )
+        result = supabase.table("caregiver_relations").select("*").eq("patient_user_id", uid).execute()
         return [row for row in result.data if _is_relation_visible(row["status"])]
     if role == "caregiver":
-        result = (
-            supabase.table("caregiver_relations")
-            .select("*")
-            .eq("caregiver_user_id", uid)
-            .execute()
-        )
+        result = supabase.table("caregiver_relations").select("*").eq("caregiver_user_id", uid).execute()
         return [row for row in result.data if _is_relation_visible(row["status"])]
 
-    patient_r = (
-        supabase.table("caregiver_relations")
-        .select("*")
-        .eq("patient_user_id", uid)
-        .execute()
-    )
-    caregiver_r = (
-        supabase.table("caregiver_relations")
-        .select("*")
-        .eq("caregiver_user_id", uid)
-        .execute()
-    )
+    patient_r = supabase.table("caregiver_relations").select("*").eq("patient_user_id", uid).execute()
+    caregiver_r = supabase.table("caregiver_relations").select("*").eq("caregiver_user_id", uid).execute()
     seen_ids = set()
     combined: list[dict] = []
     for row in patient_r.data + caregiver_r.data:
@@ -332,11 +300,7 @@ async def list_pending_changes(
     """
     uid = str(user_id)
     relations = (
-        supabase.table("caregiver_relations")
-        .select("id")
-        .eq("patient_user_id", uid)
-        .eq("status", "active")
-        .execute()
+        supabase.table("caregiver_relations").select("id").eq("patient_user_id", uid).eq("status", "active").execute()
     )
     if not relations.data:
         return []
@@ -441,12 +405,7 @@ async def _resolve_change(
     if new_status == "approved":
         await _apply_pending_change(supabase, patient_user_id, change_row)
 
-    result = (
-        supabase.table("pending_changes")
-        .update({"status": new_status})
-        .eq("id", str(change_id))
-        .execute()
-    )
+    result = supabase.table("pending_changes").update({"status": new_status}).eq("id", str(change_id)).execute()
     if not result.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -474,9 +433,7 @@ async def _apply_pending_change(
         from app.schemas.routine import RoutineCreateRequest
         from app.services.routines_service import create_routine_with_steps
 
-        await create_routine_with_steps(
-            supabase, patient_user_id, RoutineCreateRequest(**payload)
-        )
+        await create_routine_with_steps(supabase, patient_user_id, RoutineCreateRequest(**payload))
         return
 
     if change_type == "routine_update":
@@ -485,9 +442,7 @@ async def _apply_pending_change(
 
         rid = UUID(payload["routine_id"])
         body = {k: v for k, v in payload.items() if k != "routine_id"}
-        await update_routine(
-            supabase, patient_user_id, rid, RoutineUpdateRequest(**body)
-        )
+        await update_routine(supabase, patient_user_id, rid, RoutineUpdateRequest(**body))
         return
 
     if change_type == "routine_delete":
@@ -520,9 +475,7 @@ async def _apply_pending_change(
             EventStepData,
             MeasurementStepData,
         )
-        await add_step(
-            supabase, patient_user_id, rid, step, payload.get("position")
-        )
+        await add_step(supabase, patient_user_id, rid, step, payload.get("position"))
         return
 
     if change_type == "routine_step_update":
@@ -558,9 +511,7 @@ async def _apply_pending_change(
         from app.services.routine_steps_service import reorder_steps
 
         rid = UUID(payload["routine_id"])
-        await reorder_steps(
-            supabase, patient_user_id, rid, payload["ordering"]
-        )
+        await reorder_steps(supabase, patient_user_id, rid, payload["ordering"])
         return
 
     # Parameters
@@ -568,17 +519,13 @@ async def _apply_pending_change(
         from app.schemas.parameter import ParameterCreateRequest
         from app.services.parameters_service import create_custom_parameter
 
-        await create_custom_parameter(
-            supabase, patient_user_id, ParameterCreateRequest(**payload)
-        )
+        await create_custom_parameter(supabase, patient_user_id, ParameterCreateRequest(**payload))
         return
 
     if change_type == "parameter_delete":
         from app.services.parameters_service import delete_custom_parameter
 
-        await delete_custom_parameter(
-            supabase, patient_user_id, UUID(payload["parameter_id"])
-        )
+        await delete_custom_parameter(supabase, patient_user_id, UUID(payload["parameter_id"]))
         return
 
     # Measurements
@@ -586,9 +533,7 @@ async def _apply_pending_change(
         from app.schemas.measurement import MeasurementCreateRequest
         from app.services.measurements_service import create_measurement
 
-        await create_measurement(
-            supabase, patient_user_id, MeasurementCreateRequest(**payload)
-        )
+        await create_measurement(supabase, patient_user_id, MeasurementCreateRequest(**payload))
         return
 
     # Unknown change_type: no-op (legacy / forward-compat).
@@ -602,10 +547,7 @@ def _parse_step_data(payload: dict, *variants):
     for v in variants:
         if v.model_fields["step_type"].default == step_type or (
             hasattr(v.model_fields["step_type"], "annotation")
-            and step_type
-            in (
-                getattr(v.model_fields["step_type"].annotation, "__args__", [step_type])
-            )
+            and step_type in (getattr(v.model_fields["step_type"].annotation, "__args__", [step_type]))
         ):
             return v(**payload)
     # Fallback: try each variant directly until one validates.

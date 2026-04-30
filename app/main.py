@@ -5,8 +5,9 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import get_settings
 from app.middleware.rate_limit import limiter, rate_limit_exceeded_handler
@@ -35,6 +36,29 @@ from app.routers import (
 logger = logging.getLogger("pharmapp")
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, *, enable_hsts: bool):
+        super().__init__(app)
+        self.enable_hsts = enable_hsts
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'none'; frame-ancestors 'none'",
+        )
+        if self.enable_hsts:
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            )
+        return response
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app_settings = get_settings()
@@ -53,31 +77,38 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    is_production = app_settings.environment.lower() == "production"
+
     # Rate limiting state and middleware
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
     app.add_middleware(SlowAPIMiddleware)
 
+    app.add_middleware(SecurityHeadersMiddleware, enable_hsts=is_production)
+
+    cors_allow_credentials = bool(app_settings.cors_origins) and "*" not in app_settings.cors_origins
     app.add_middleware(
         CORSMiddleware,
         allow_origins=app_settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_credentials=cors_allow_credentials,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type"],
     )
 
     # Exception handlers
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+        payload: dict = {
+            "code": "validation_error",
+            "message": "Request validation failed",
+        }
+        if not is_production:
+            payload["details"] = exc.errors()
+        else:
+            logger.warning("validation_error path=%s errors=%s", request.url.path, exc.errors())
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content={
-                "error": {
-                    "code": "validation_error",
-                    "message": "Request validation failed",
-                    "details": exc.errors(),
-                }
-            },
+            content={"error": payload},
         )
 
     # Routers — v2 (Pharma Reminder)

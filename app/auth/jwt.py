@@ -8,13 +8,14 @@ from jose import JWTError, jwt
 
 from app.auth.models import AuthenticatedUser
 
-# Simple JWKS cache: (jwks_dict, fetched_at)
+ALLOWED_ALGORITHMS = frozenset({"HS256", "ES256", "RS256"})
+ASYMMETRIC_ALGORITHMS = frozenset({"ES256", "RS256"})
+
 _jwks_cache: tuple[dict, float] | None = None
-_JWKS_TTL = 3600  # refresh every hour
+_JWKS_TTL = 3600
 
 
 def _get_jwks(supabase_url: str) -> dict:
-    """Fetch and cache the JWKS from Supabase (TTL: 1 hour)."""
     global _jwks_cache
     now = time.monotonic()
     if _jwks_cache is None or (now - _jwks_cache[1]) > _JWKS_TTL:
@@ -24,12 +25,17 @@ def _get_jwks(supabase_url: str) -> dict:
     return _jwks_cache[0]
 
 
-def _get_jwt_algorithm(token: str) -> str:
-    """Extract the algorithm from the JWT header without verifying."""
-    header_b64 = token.split(".")[0]
-    padding = (4 - len(header_b64) % 4) % 4
-    header = json.loads(base64.urlsafe_b64decode(header_b64 + "=" * padding))
-    return header.get("alg", "HS256")
+def _peek_algorithm(token: str) -> str:
+    try:
+        header_b64 = token.split(".", 2)[0]
+        padding = (4 - len(header_b64) % 4) % 4
+        header = json.loads(base64.urlsafe_b64decode(header_b64 + "=" * padding))
+    except (ValueError, IndexError, json.JSONDecodeError) as exc:
+        raise JWTError("Malformed JWT header") from exc
+    alg = header.get("alg")
+    if alg not in ALLOWED_ALGORITHMS:
+        raise JWTError(f"Unsupported JWT algorithm: {alg!r}")
+    return alg
 
 
 def decode_access_token(
@@ -39,16 +45,17 @@ def decode_access_token(
 ) -> AuthenticatedUser:
     """Decode and verify a Supabase JWT access token.
 
-    Supports both legacy HS256 tokens and new ECC (ES256) tokens issued
-    by Supabase after the JWT signing key rotation.
+    HS256 path uses the shared secret. ES256/RS256 path uses Supabase JWKS.
+    Algorithm is whitelisted before any verification to prevent key/alg confusion.
     """
-    alg = _get_jwt_algorithm(token)
+    alg = _peek_algorithm(token)
 
-    if alg in ("ES256", "RS256") and supabase_url:
-        jwks = _get_jwks(supabase_url)
+    if alg in ASYMMETRIC_ALGORITHMS:
+        if not supabase_url:
+            raise JWTError("supabase_url required to verify asymmetric JWT")
         payload = jwt.decode(
             token,
-            jwks,
+            _get_jwks(supabase_url),
             algorithms=[alg],
             audience="authenticated",
         )

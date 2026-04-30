@@ -1,3 +1,5 @@
+import re
+
 from fastapi import HTTPException, status
 from supabase import Client
 
@@ -7,6 +9,15 @@ from app.schemas.catalog import (
     CatalogProductSearchResultDTO,
     CatalogSearchResultDTO,
 )
+
+_POSTGREST_RESERVED = re.compile(r"[,()*\\]")
+_MAX_QUERY_LEN = 80
+
+
+def _sanitize_query(query: str) -> str:
+    cleaned = _POSTGREST_RESERVED.sub(" ", query).strip()
+    return cleaned[:_MAX_QUERY_LEN]
+
 
 # Forniture AIFA "vendibili al pubblico" (farmacia territoriale).
 # Filtro applicato lato backend — non nella view DB — così la logica
@@ -50,7 +61,10 @@ async def search_catalog(
     Il filtro `fornitura_code` pubblico viene applicato qui via
     PostgREST `in_`, non nella definizione della view.
     """
-    pattern = f"*{query}*"
+    safe_query = _sanitize_query(query)
+    if not safe_query:
+        return []
+    pattern = f"*{safe_query}*"
     builder = (
         supabase.from_("catalog_search_v1")
         .select("*")
@@ -69,7 +83,7 @@ async def search_catalog(
     # Ordinamento lato Python: `.order()` via PostgREST in combinazione con
     # `.or_()` non è sempre affidabile a seconda della versione supabase-py.
     # Prioritizziamo exact-prefix match su display_name, poi alfabetico.
-    q_lower = query.lower()
+    q_lower = safe_query.lower()
     rows = sorted(
         result.data,
         key=lambda r: (

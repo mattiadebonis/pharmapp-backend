@@ -12,19 +12,24 @@ Limits:
 """
 
 from fastapi import Request
+from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
-from fastapi.responses import JSONResponse
+
+from app.config import get_settings
 
 
 def get_real_ip(request: Request) -> str:
     """
-    Extract the real client IP, respecting X-Forwarded-For from Nginx/Fly.io.
-    Takes only the first (leftmost) address to avoid spoofing via appended IPs.
+    Extract the real client IP. Honors X-Forwarded-For only when
+    `trust_proxy_header` is enabled (deployments behind a known reverse
+    proxy such as Nginx/Fly.io); otherwise the header is ignored to
+    prevent spoofing by direct clients.
     """
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    if get_settings().trust_proxy_header:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
     if request.client:
         return request.client.host
     return "unknown"
