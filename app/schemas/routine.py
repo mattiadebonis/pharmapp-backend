@@ -1,84 +1,58 @@
+"""Routine schema with inline polymorphic steps."""
+
 from datetime import datetime
-from typing import Literal
 from uuid import UUID
 
+from pydantic import Field
+
 from app.schemas.base import PharmaBaseModel
+from app.schemas.routine_step import RoutineStepData, RoutineStepDTO
 
 
 # ---------------------------------------------------------------------------
-# Enums
+# Routine DTO
 # ---------------------------------------------------------------------------
-RoutineStepType = Literal["medication", "wait", "event"]
 
 
-# ---------------------------------------------------------------------------
-# Step DTO + create
-# ---------------------------------------------------------------------------
-class RoutineStepDTO(PharmaBaseModel):
-    id: UUID
-    routine_id: UUID
-    position: int
-    step_type: RoutineStepType
-    # medication step
-    medication_id: UUID | None = None
-    dose_amount: str | None = None
-    # wait step
-    duration_minutes: int | None = None
-    instructions: str | None = None
-    # event step
-    event_name: str | None = None
-    created_at: datetime
-    updated_at: datetime
-
-
-class RoutineStepCreateRequest(PharmaBaseModel):
-    """Inline step payload used inside a routine create/update request.
-
-    The id is allocated server-side. position is required and 0-indexed.
-    Caller must supply the fields that match step_type:
-      * medication → medication_id (required), dose_amount (optional)
-      * wait       → duration_minutes (required), instructions (optional)
-      * event      → event_name (required)
-    """
-
-    position: int
-    step_type: RoutineStepType
-    medication_id: UUID | None = None
-    dose_amount: str | None = None
-    duration_minutes: int | None = None
-    instructions: str | None = None
-    event_name: str | None = None
-
-
-# ---------------------------------------------------------------------------
-# Routine DTO + create + update
-# ---------------------------------------------------------------------------
 class RoutineDTO(PharmaBaseModel):
     id: UUID
     profile_id: UUID
     name: str
     rrule: str | None = None
-    start_time: str | None = None
+    start_time: str | None = None  # "HH:MM"
     is_active: bool = True
-    steps: list[RoutineStepDTO] = []
     created_at: datetime
     updated_at: datetime
 
 
+class RoutineWithStepsDTO(RoutineDTO):
+    steps: list[RoutineStepDTO] = []
+
+
+# ---------------------------------------------------------------------------
+# Create + Update requests
+# ---------------------------------------------------------------------------
+
+
+_TIME_PATTERN = r"^\d{2}:\d{2}$"
+
+
 class RoutineCreateRequest(PharmaBaseModel):
     profile_id: UUID
-    name: str
+    name: str = Field(min_length=1, max_length=80)
     rrule: str | None = None
-    start_time: str | None = None
+    start_time: str | None = Field(None, pattern=_TIME_PATTERN)
     is_active: bool = True
-    steps: list[RoutineStepCreateRequest] = []
+    steps: list[RoutineStepData] = []
 
 
 class RoutineUpdateRequest(PharmaBaseModel):
-    name: str | None = None
+    """Updates routine metadata only. To replace the step list use the
+    granular `/routines/{id}/steps/*` endpoints (or the legacy `steps`
+    field for backward compatibility with v1 clients)."""
+
+    name: str | None = Field(None, min_length=1, max_length=80)
     rrule: str | None = None
-    start_time: str | None = None
+    start_time: str | None = Field(None, pattern=_TIME_PATTERN)
     is_active: bool | None = None
-    # When provided, replaces the full step list (caller sends the desired
-    # final ordering; server diffs internally). Omit to leave steps untouched.
-    steps: list[RoutineStepCreateRequest] | None = None
+    steps: list[RoutineStepData] | None = None

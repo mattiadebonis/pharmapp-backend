@@ -236,8 +236,10 @@ async def get_bootstrap_data(supabase: Client, user_id: UUID) -> dict:
     )
 
     # ---------------------------------------------------------------
-    # 10. Routines (+ inline steps)
+    # 10. Routines (+ inline steps in DTO shape)
     # ---------------------------------------------------------------
+    from app.schemas.routine_step import RoutineStepDTO  # local import: avoids circular at module load
+
     if profile_ids:
         routines_r = (
             supabase.table("routines")
@@ -260,11 +262,49 @@ async def get_bootstrap_data(supabase: Client, user_id: UUID) -> dict:
         for s in routine_steps_r.data:
             steps_by_routine.setdefault(s["routine_id"], []).append(s)
         routines_with_steps = [
-            {**r, "steps": steps_by_routine.get(r["id"], [])}
+            {
+                **r,
+                "steps": [
+                    RoutineStepDTO.from_row(s).model_dump()
+                    for s in steps_by_routine.get(r["id"], [])
+                ],
+            }
             for r in routines_r.data
         ]
     else:
         routines_with_steps = []
+
+    # ---------------------------------------------------------------
+    # 11. Parameters (predefined + custom) + recent measurements
+    # ---------------------------------------------------------------
+    from app.services.parameters_service import PREDEFINED_PARAMETERS, _predefined_dto
+
+    parameters_payload: list[dict] = [
+        _predefined_dto(p) for p in PREDEFINED_PARAMETERS
+    ]
+    if profile_ids:
+        custom_params_r = (
+            supabase.table("parameters")
+            .select("*")
+            .in_("profile_id", profile_ids)
+            .order("created_at")
+            .execute()
+        )
+        for row in custom_params_r.data:
+            parameters_payload.append({**row, "is_predefined": False})
+
+    if profile_ids:
+        measurements_r = (
+            supabase.table("measurements")
+            .select("*")
+            .in_("profile_id", profile_ids)
+            .order("recorded_at", desc=True)
+            .limit(500)
+            .execute()
+        )
+        recent_measurements = measurements_r.data
+    else:
+        recent_measurements = []
 
     # ---------------------------------------------------------------
     # Assemble response
@@ -281,4 +321,6 @@ async def get_bootstrap_data(supabase: Client, user_id: UUID) -> dict:
         "device_tokens": device_tokens_r.data,
         "prescription_requests": prescription_requests_r.data,
         "routines": routines_with_steps,
+        "parameters": parameters_payload,
+        "recent_measurements": recent_measurements,
     }

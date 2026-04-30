@@ -415,6 +415,8 @@ async def _resolve_change(
     """Approve or reject a pending change.
 
     Verifies the change belongs to a relation where the user is the patient.
+    On approval, applies the change to the target tables via the
+    appropriate service.
     """
     uid = str(patient_user_id)
     change = (
@@ -434,6 +436,11 @@ async def _resolve_change(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"error": {"code": "forbidden", "message": "Only the patient can approve/reject changes"}},
         )
+
+    change_row = change.data[0]
+    if new_status == "approved":
+        await _apply_pending_change(supabase, patient_user_id, change_row)
+
     result = (
         supabase.table("pending_changes")
         .update({"status": new_status})
@@ -446,3 +453,174 @@ async def _resolve_change(
             detail={"error": {"code": "not_found", "message": "Pending change not found"}},
         )
     return result.data[0]
+
+
+async def _apply_pending_change(
+    supabase: Client,
+    patient_user_id: UUID,
+    change_row: dict,
+) -> None:
+    """Apply the approved pending change to the target tables.
+
+    Dispatches by `change_type`. For routine_*/parameter_*/measurement_*
+    we delegate to the existing service layer using the patient's user_id
+    so ownership checks pass.
+    """
+    change_type = change_row.get("change_type") or ""
+    payload = change_row.get("payload") or {}
+
+    # Routines
+    if change_type == "routine_create":
+        from app.schemas.routine import RoutineCreateRequest
+        from app.services.routines_service import create_routine_with_steps
+
+        await create_routine_with_steps(
+            supabase, patient_user_id, RoutineCreateRequest(**payload)
+        )
+        return
+
+    if change_type == "routine_update":
+        from app.schemas.routine import RoutineUpdateRequest
+        from app.services.routines_service import update_routine
+
+        rid = UUID(payload["routine_id"])
+        body = {k: v for k, v in payload.items() if k != "routine_id"}
+        await update_routine(
+            supabase, patient_user_id, rid, RoutineUpdateRequest(**body)
+        )
+        return
+
+    if change_type == "routine_delete":
+        from app.services.routines_service import delete_routine
+
+        await delete_routine(
+            supabase,
+            patient_user_id,
+            UUID(payload["routine_id"]),
+            hard=bool(payload.get("hard", False)),
+        )
+        return
+
+    # Routine steps
+    if change_type == "routine_step_add":
+        from app.schemas.routine_step import (
+            EventStepData,
+            MeasurementStepData,
+            MedicationStepData,
+            WaitStepData,
+        )
+        from app.services.routine_steps_service import add_step
+
+        rid = UUID(payload["routine_id"])
+        step_payload = payload["step_data"]
+        step = _parse_step_data(
+            step_payload,
+            MedicationStepData,
+            WaitStepData,
+            EventStepData,
+            MeasurementStepData,
+        )
+        await add_step(
+            supabase, patient_user_id, rid, step, payload.get("position")
+        )
+        return
+
+    if change_type == "routine_step_update":
+        from app.schemas.routine_step import (
+            EventStepData,
+            MeasurementStepData,
+            MedicationStepData,
+            WaitStepData,
+        )
+        from app.services.routine_steps_service import update_step
+
+        rid = UUID(payload["routine_id"])
+        sid = UUID(payload["step_id"])
+        step = _parse_step_data(
+            payload["step_data"],
+            MedicationStepData,
+            WaitStepData,
+            EventStepData,
+            MeasurementStepData,
+        )
+        await update_step(supabase, patient_user_id, rid, sid, step)
+        return
+
+    if change_type == "routine_step_remove":
+        from app.services.routine_steps_service import delete_step
+
+        rid = UUID(payload["routine_id"])
+        sid = UUID(payload["step_id"])
+        await delete_step(supabase, patient_user_id, rid, sid)
+        return
+
+    if change_type == "routine_step_reorder":
+        from app.services.routine_steps_service import reorder_steps
+
+        rid = UUID(payload["routine_id"])
+        await reorder_steps(
+            supabase, patient_user_id, rid, payload["ordering"]
+        )
+        return
+
+    # Parameters
+    if change_type == "parameter_create":
+        from app.schemas.parameter import ParameterCreateRequest
+        from app.services.parameters_service import create_custom_parameter
+
+        await create_custom_parameter(
+            supabase, patient_user_id, ParameterCreateRequest(**payload)
+        )
+        return
+
+    if change_type == "parameter_delete":
+        from app.services.parameters_service import delete_custom_parameter
+
+        await delete_custom_parameter(
+            supabase, patient_user_id, UUID(payload["parameter_id"])
+        )
+        return
+
+    # Measurements
+    if change_type == "measurement_create":
+        from app.schemas.measurement import MeasurementCreateRequest
+        from app.services.measurements_service import create_measurement
+
+        await create_measurement(
+            supabase, patient_user_id, MeasurementCreateRequest(**payload)
+        )
+        return
+
+    # Unknown change_type: no-op (legacy / forward-compat).
+    return
+
+
+def _parse_step_data(payload: dict, *variants):
+    """Parse the discriminated step payload by trying each variant — the
+    discriminator is `step_type`."""
+    step_type = payload.get("step_type")
+    for v in variants:
+        if v.model_fields["step_type"].default == step_type or (
+            hasattr(v.model_fields["step_type"], "annotation")
+            and step_type
+            in (
+                getattr(v.model_fields["step_type"].annotation, "__args__", [step_type])
+            )
+        ):
+            return v(**payload)
+    # Fallback: try each variant directly until one validates.
+    last_err: Exception | None = None
+    for v in variants:
+        try:
+            return v(**payload)
+        except Exception as exc:
+            last_err = exc
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail={
+            "error": {
+                "code": "validation_error",
+                "message": f"Invalid step_data payload: {last_err}",
+            }
+        },
+    )

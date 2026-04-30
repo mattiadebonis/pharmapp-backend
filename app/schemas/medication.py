@@ -37,6 +37,7 @@ class MedicationDTO(PharmaBaseModel):
     notes: str | None = None
     catalog_snapshot: dict[str, Any] | None = None
     prescribing_doctor_id: UUID | None = None
+    managed_by_routine_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
 
