@@ -24,6 +24,7 @@ from app.routers import (
     prescription_requests,
     prescriptions,
     profiles,
+    routines,
     settings,
     supplies,
 )
@@ -88,6 +89,7 @@ def create_app() -> FastAPI:
     app.include_router(prescriptions.router, prefix="/v2")
     app.include_router(prescription_requests.router, prefix="/v2")
     app.include_router(dose_events.router, prefix="/v2")
+    app.include_router(routines.router, prefix="/v2")
     app.include_router(settings.router, prefix="/v2")
     app.include_router(caregivers.router, prefix="/v2")
     app.include_router(activity_logs.router, prefix="/v2")

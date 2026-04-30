@@ -1,7 +1,12 @@
 from fastapi import HTTPException, status
 from supabase import Client
 
-from app.schemas.catalog import CatalogPackageDTO, CatalogProductDTO, CatalogSearchResultDTO
+from app.schemas.catalog import (
+    CatalogPackageDTO,
+    CatalogProductDTO,
+    CatalogProductSearchResultDTO,
+    CatalogSearchResultDTO,
+)
 
 # Forniture AIFA "vendibili al pubblico" (farmacia territoriale).
 # Filtro applicato lato backend — non nella view DB — così la logica
@@ -73,6 +78,32 @@ async def search_catalog(
         ),
     )
     return [CatalogSearchResultDTO.model_validate(row) for row in rows]
+
+
+async def search_catalog_products(
+    supabase: Client,
+    country: str,
+    query: str,
+    limit: int = 30,
+    include_homeopathic: bool = False,
+) -> list[CatalogProductSearchResultDTO]:
+    """Ricerca catalogo aggregata: 1 riga per `cod_farmaco`.
+
+    Usa la RPC `search_catalog_products_v1` (migration 016) che fa GROUP BY
+    server-side con conteggi `variant_count`/`package_count` e campi
+    `single_*` per il caso 1-tap finale (1 variante × 1 confezione).
+    """
+    result = supabase.rpc(
+        "search_catalog_products_v1",
+        {
+            "p_country": country,
+            "p_query": query,
+            "p_limit": limit,
+            "p_include_homeopathic": include_homeopathic,
+        },
+    ).execute()
+    rows = result.data or []
+    return [CatalogProductSearchResultDTO.model_validate(row) for row in rows]
 
 
 async def fetch_product(supabase: Client, country: str, product_id: str) -> CatalogProductDTO:

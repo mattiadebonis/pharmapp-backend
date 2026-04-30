@@ -4,8 +4,18 @@ from fastapi import APIRouter, Depends, Query
 from supabase import Client
 
 from app.dependencies import get_supabase
-from app.schemas.catalog import CatalogPackageDTO, CatalogProductDTO, CatalogSearchResultDTO
-from app.services.catalog_service import fetch_package, fetch_product, search_catalog
+from app.schemas.catalog import (
+    CatalogPackageDTO,
+    CatalogProductDTO,
+    CatalogProductSearchResultDTO,
+    CatalogSearchResultDTO,
+)
+from app.services.catalog_service import (
+    fetch_package,
+    fetch_product,
+    search_catalog,
+    search_catalog_products,
+)
 
 router = APIRouter(prefix="/catalog", tags=["Catalog"])
 
@@ -19,6 +29,19 @@ async def catalog_search(
     supabase: Client = Depends(get_supabase),
 ):
     return await search_catalog(supabase, country, q, limit, include_homeopathic)
+
+
+@router.get("/products/search", response_model=list[CatalogProductSearchResultDTO])
+async def catalog_products_search(
+    country: Literal["it", "us"] = Query(...),
+    q: str = Query(..., min_length=1),
+    limit: int = Query(30, ge=1, le=60),
+    include_homeopathic: bool = Query(False),
+    supabase: Client = Depends(get_supabase),
+):
+    """Ricerca aggregata 1-row-per-product. Usata da UI ridisegnata
+    con espansione nested farmaco → dosaggio → confezione."""
+    return await search_catalog_products(supabase, country, q, limit, include_homeopathic)
 
 
 @router.get("/products/{country}/{product_id}", response_model=CatalogProductDTO)

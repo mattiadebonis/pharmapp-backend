@@ -57,6 +57,12 @@ async def get_bootstrap_data(supabase: Client, user_id: UUID) -> dict:
                 "default_snooze_minutes": 10,
                 "grace_minutes": 120,
                 "notify_caregivers": True,
+                "notifications_enabled": True,
+                "refill_alerts_enabled": True,
+                "biometrics_enabled": False,
+                "face_id_sensitive_actions": False,
+                "anonymous_notifications": False,
+                "hide_medication_names": False,
             })
             .execute()
         ).data[0]
@@ -230,6 +236,37 @@ async def get_bootstrap_data(supabase: Client, user_id: UUID) -> dict:
     )
 
     # ---------------------------------------------------------------
+    # 10. Routines (+ inline steps)
+    # ---------------------------------------------------------------
+    if profile_ids:
+        routines_r = (
+            supabase.table("routines")
+            .select("*")
+            .in_("profile_id", profile_ids)
+            .execute()
+        )
+        routine_ids = [r["id"] for r in routines_r.data]
+        if routine_ids:
+            routine_steps_r = (
+                supabase.table("routine_steps")
+                .select("*")
+                .in_("routine_id", routine_ids)
+                .order("position")
+                .execute()
+            )
+        else:
+            routine_steps_r = empty
+        steps_by_routine: dict[str, list] = {}
+        for s in routine_steps_r.data:
+            steps_by_routine.setdefault(s["routine_id"], []).append(s)
+        routines_with_steps = [
+            {**r, "steps": steps_by_routine.get(r["id"], [])}
+            for r in routines_r.data
+        ]
+    else:
+        routines_with_steps = []
+
+    # ---------------------------------------------------------------
     # Assemble response
     # ---------------------------------------------------------------
     return {
@@ -243,4 +280,5 @@ async def get_bootstrap_data(supabase: Client, user_id: UUID) -> dict:
         "pending_changes": pending_changes_r.data,
         "device_tokens": device_tokens_r.data,
         "prescription_requests": prescription_requests_r.data,
+        "routines": routines_with_steps,
     }

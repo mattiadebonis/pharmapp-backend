@@ -35,6 +35,35 @@ class CatalogSearchResultDTO(PharmaBaseModel):
     is_homeopathic: bool | None = None
 
 
+class CatalogProductSearchResultDTO(PharmaBaseModel):
+    """Riga aggregata della ricerca catalogo (1 per cod_farmaco).
+
+    Espone i conteggi (`variant_count`, `package_count`) e, quando applicabile,
+    i campi `single_*` per il caso "1-tap final" (1 variante, 1 confezione).
+    """
+
+    country: str
+    product_id: str
+    display_name: str
+    generic_name: str | None = None
+    principle: str | None = None
+    requires_prescription: bool | None = None
+    variant_count: int = 0
+    package_count: int = 0
+    # Compilati solo se variant_count == 1 / package_count == 1
+    single_strength_text: str | None = None
+    single_form_type: str | None = None
+    single_package_label: str | None = None
+    single_units: int | None = None
+    single_package_id: str | None = None
+    single_catalog_code: str | None = None
+    # Meta utili al client
+    link_fi: str | None = None
+    link_rcp: str | None = None
+    codice_atc: str | None = None
+    is_homeopathic: bool | None = None
+
+
 class CatalogProductDTO(PharmaBaseModel):
     id: str
     country: str

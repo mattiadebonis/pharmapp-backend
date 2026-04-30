@@ -5,6 +5,7 @@ from app.schemas.dose_event import DoseEventDTO
 from app.schemas.medication import MedicationWithDetailsDTO
 from app.schemas.prescription_request import PrescriptionRequestDTO
 from app.schemas.profile import ProfileDTO
+from app.schemas.routine import RoutineDTO
 from app.schemas.settings import UserSettingsDTO
 
 
@@ -19,3 +20,4 @@ class BootstrapResponse(PharmaBaseModel):
     caregiver_relations: list[CaregiverRelationDTO] = []
     pending_changes: list[PendingChangeDTO] = []
     prescription_requests: list[PrescriptionRequestDTO] = []
+    routines: list[RoutineDTO] = []
