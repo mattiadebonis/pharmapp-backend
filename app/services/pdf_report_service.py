@@ -242,6 +242,7 @@ def _format_parameters(report: TherapyDataReport):
                 trend_label = f"{sign}{magnitude} {unit} in {span_label}".strip()
 
         target = _target_lines_for(p, meta)
+        target_band = _target_band_for(p, meta)
         out.append({
             "parameter_key": p.parameter_key,
             "name": p.name,
@@ -253,6 +254,7 @@ def _format_parameters(report: TherapyDataReport):
             "value_caption": value_caption,
             "target_label": meta.get("target_label"),
             "target_lines": target,
+            "target_band": target_band,
             "trend_label": trend_label,
         })
     return out
@@ -295,6 +297,21 @@ def _target_lines_for(p, meta: dict[str, Any]) -> list[dict[str, Any]]:
             if v is not None:
                 lines.append({"value": v, "color": color, "axis": 1})
     return lines
+
+
+def _target_band_for(p, meta: dict[str, Any]) -> dict[str, float] | None:
+    """Return the OK-zone band (low, high) when a parameter has a
+    bounded therapeutic range. Renders as a soft green fill behind
+    the data line, making "in target" / "out of target" obvious at
+    a glance — more readable than two dashed lines for ranges like
+    INR 2.0–3.0 or temperature 36–37.5."""
+    if p.value_type == "numericDouble":
+        return None  # bands handled differently for paired series
+    low = meta.get("target_low")
+    high = meta.get("target_high")
+    if low is not None and high is not None:
+        return {"low": float(low), "high": float(high)}
+    return None
 
 
 def _format_number(v: float) -> str:
@@ -460,24 +477,35 @@ class _Macros:
             return target_svg + line1 + dots1 + line2 + dots2
         else:
             ys = [(p.v1 or 0) for p in points]
+            target_band = param.get("target_band")
             y_min = min(ys) - (max(ys) - min(ys) + 1) * 0.1
             y_max = max(ys) + (max(ys) - min(ys) + 1) * 0.1
             for t in target_lines:
                 y_min = min(y_min, t["value"] - 0.05 * abs(t["value"]))
                 y_max = max(y_max, t["value"] + 0.05 * abs(t["value"]))
-            target_svg = self._stack_targets(target_lines, y_min, y_max, height)
+            if target_band:
+                y_min = min(y_min, target_band["low"] - 0.05 * abs(target_band["low"]))
+                y_max = max(y_max, target_band["high"] + 0.05 * abs(target_band["high"]))
+            band_svg = self._svg_target_band(
+                low=target_band["low"], high=target_band["high"],
+                y_min=y_min, y_max=y_max, height_pt=height,
+            ) if target_band else ""
+            target_svg = self._stack_targets(
+                target_lines, y_min, y_max, height,
+                inline_offset=bool(band_svg),
+            )
             xs = list(range(len(points)))
             line = self._svg_line(
                 xs=xs, ys=ys,
                 stroke="#1D9E75", y_min=y_min, y_max=y_max, height_pt=height,
-                inline=bool(target_svg),
+                inline=bool(band_svg or target_svg),
             )
             dots = self._svg_dots(
                 xs=xs, ys=ys,
                 stroke="#1D9E75", y_min=y_min, y_max=y_max, height_pt=height,
                 inline=True,
             )
-            return target_svg + line + dots
+            return band_svg + target_svg + line + dots
 
     def x_axis_param_dates(self, param: dict[str, Any]) -> str:
         """X-axis tick labels for a parameter chart — picks ~6 evenly
@@ -498,14 +526,40 @@ class _Macros:
     def _stack_targets(
         self, target_lines: list[dict[str, Any]],
         y_min: float, y_max: float, height_pt: int,
+        inline_offset: bool = False,
     ) -> str:
+        # `inline_offset=True` when a target band already painted the
+        # first SVG layer — every line then needs `margin-top:-Hpt;`
+        # to overlay correctly.
         return "".join(
             self._svg_target(
                 value=t["value"], color=t["color"],
                 y_min=y_min, y_max=y_max, height_pt=height_pt,
-                inline=(idx > 0),
+                inline=(idx > 0) or inline_offset,
             )
             for idx, t in enumerate(target_lines)
+        )
+
+    def _svg_target_band(
+        self, *, low: float, high: float,
+        y_min: float, y_max: float, height_pt: int,
+    ) -> str:
+        """Soft green rectangle spanning the OK zone [low, high]
+        on the y-axis. Drawn first (back layer) so the line + dots
+        appear on top."""
+        if y_max <= y_min:
+            return ""
+        width = 480
+        norm_top = (high - y_min) / (y_max - y_min)
+        norm_bot = (low - y_min) / (y_max - y_min)
+        sy_top = height_pt * 4 - norm_top * (height_pt * 4)
+        sy_bot = height_pt * 4 - norm_bot * (height_pt * 4)
+        h = max(2, sy_bot - sy_top)
+        return (
+            f'<svg class="row-chart" viewBox="0 0 {width} {height_pt * 4}" '
+            f'preserveAspectRatio="none" style="height:{height_pt}pt;">'
+            f'<rect x="0" y="{sy_top:.1f}" width="{width}" height="{h:.1f}" '
+            f'fill="#1D9E75" opacity="0.10"/></svg>'
         )
 
     def _svg_dots(
