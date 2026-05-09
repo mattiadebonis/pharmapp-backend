@@ -86,8 +86,19 @@ async def create_medication(supabase: Client, user_id: UUID, data) -> dict:
     payload["profile_id"] = str(profile_id)
     if payload.get("prescribing_doctor_id"):
         payload["prescribing_doctor_id"] = str(payload["prescribing_doctor_id"])
+    # Extract optional embedded schedules — must be inserted after the
+    # medication so we can fill medication_id on each row.
+    embedded_schedules = payload.pop("schedules", None) or []
     result = supabase.table("medications").insert(payload).execute()
-    return result.data[0]
+    medication = result.data[0]
+    if embedded_schedules:
+        med_id = medication["id"]
+        rows = []
+        for sched in embedded_schedules:
+            sched["medication_id"] = med_id
+            rows.append(sched)
+        supabase.table("dosing_schedules").insert(rows).execute()
+    return medication
 
 
 async def get_medication(supabase: Client, user_id: UUID, medication_id: UUID) -> dict:

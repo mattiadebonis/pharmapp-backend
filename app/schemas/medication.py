@@ -9,6 +9,39 @@ from app.schemas.supply import SupplyDTO
 
 
 # ---------------------------------------------------------------------------
+# Inline schedule for bulk medication+schedule creation. Mirrors
+# DosingScheduleCreateRequest minus the medication_id (filled server-side
+# from the freshly-created medication).
+# ---------------------------------------------------------------------------
+class EmbeddedScheduleCreate(PharmaBaseModel):
+    schedule_type: Literal["scheduled", "as_needed", "cycle", "tapering"]
+    times: list[dict[str, Any]] | None = None
+    pills_per_dose: float | None = None
+    max_per_day: int | None = None
+    min_interval_hours: float | None = None
+    condition: str | None = None
+    cycle_days: int | None = None
+    cycle_start_date: date | None = None
+    tapering_steps: list[dict[str, Any]] | None = None
+    variable_subtype: Literal["weekly", "tapering", "escalation"] | None = None
+    rrule: str | None = None
+    is_active: bool = True
+    importance: Literal["vital", "essential", "standard"] = "standard"
+    notification_level: Literal["normal", "alarm"] = "normal"
+    snooze_minutes: int | None = None
+    notifications_silenced: bool = False
+    weekly_overrides: dict[str, float] | None = None
+    format: Literal["compressa", "inalatore", "gocce", "altro"] | None = None
+    daily_limit: int | None = None
+    weekly_alert_threshold: int | None = None
+    cycle_pattern: Literal["weekly", "biweekly", "every_n"] | None = None
+    cycle_weekdays: list[int] | None = None
+    notify_day_before: bool = False
+    post_tapering_behavior: Literal["fine_terapia", "mantenimento"] | None = None
+    late_threshold_minutes: int | None = None
+
+
+# ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
 MedicationCategory = Literal["farmaco", "otc", "integratore"]
@@ -63,6 +96,10 @@ class MedicationCreateRequest(PharmaBaseModel):
     notes: str | None = None
     catalog_snapshot: dict[str, Any] | None = None
     prescribing_doctor_id: UUID | None = None
+    # Optional embedded schedules — when present, the create endpoint
+    # also inserts each schedule with the new medication_id atomically.
+    # Lets the iOS client persist a med + its dosing in a single round-trip.
+    schedules: list[EmbeddedScheduleCreate] | None = None
 
 
 # ---------------------------------------------------------------------------
