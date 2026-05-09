@@ -51,6 +51,9 @@ class DosingScheduleDTO(PharmaBaseModel):
     cycle_weekdays: list[int] | None = None
     notify_day_before: bool = False
     post_tapering_behavior: PostTaperingBehavior | None = None
+    # Soglia in minuti oltre due_at per classificare la dose come "ritardo".
+    # NULL → 30 min (default applicativo, vedi adherence_service).
+    late_threshold_minutes: int | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -84,6 +87,7 @@ class DosingScheduleCreateRequest(PharmaBaseModel):
     cycle_weekdays: list[int] | None = None
     notify_day_before: bool = False
     post_tapering_behavior: PostTaperingBehavior | None = None
+    late_threshold_minutes: int | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -114,3 +118,4 @@ class DosingScheduleUpdateRequest(PharmaBaseModel):
     cycle_weekdays: list[int] | None = None
     notify_day_before: bool | None = None
     post_tapering_behavior: PostTaperingBehavior | None = None
+    late_threshold_minutes: int | None = None

@@ -28,6 +28,7 @@ class DoseEventDTO(PharmaBaseModel):
     auto_registered_at: datetime | None = None
     user_corrected_at: datetime | None = None
     note: str | None = None
+    pills_taken: float | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -47,6 +48,7 @@ class DoseEventCreateRequest(PharmaBaseModel):
     auto_registered_at: datetime | None = None
     user_corrected_at: datetime | None = None
     note: str | None = None
+    pills_taken: float | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -60,3 +62,4 @@ class DoseEventUpdateRequest(PharmaBaseModel):
     auto_registered_at: datetime | None = None
     user_corrected_at: datetime | None = None
     note: str | None = None
+    pills_taken: float | None = None

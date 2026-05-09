@@ -37,6 +37,10 @@ PREDEFINED_PARAMETERS: list[dict[str, Any]] = [
         "value_type": "numericSingle",
         "decimals": 0,
         "labels": None,
+        # Target plasma glucose: 70–130 mg/dL (post-prandial 2h ≤180).
+        "target_low": 70,
+        "target_high": 130,
+        "target_label": "70–130",
     },
     {
         "parameter_key": "blood_pressure",
@@ -45,6 +49,13 @@ PREDEFINED_PARAMETERS: list[dict[str, Any]] = [
         "value_type": "numericDouble",
         "decimals": 0,
         "labels": ["Sistolica", "Diastolica"],
+        # Hypertension target: SBP <140, DBP <90 (general); <130/80 for
+        # diabetic / nephropathic patients. Use general target.
+        "target_low_v1": None,
+        "target_high_v1": 140,
+        "target_low_v2": None,
+        "target_high_v2": 90,
+        "target_label": "<140/90",
     },
     {
         "parameter_key": "weight",
@@ -53,6 +64,7 @@ PREDEFINED_PARAMETERS: list[dict[str, Any]] = [
         "value_type": "numericSingle",
         "decimals": 1,
         "labels": None,
+        # No fixed target — patient-specific.
     },
     {
         "parameter_key": "temperature",
@@ -61,6 +73,9 @@ PREDEFINED_PARAMETERS: list[dict[str, Any]] = [
         "value_type": "numericSingle",
         "decimals": 1,
         "labels": None,
+        "target_low": 36.0,
+        "target_high": 37.5,
+        "target_label": "36–37,5",
     },
     {
         "parameter_key": "inr",
@@ -69,6 +84,11 @@ PREDEFINED_PARAMETERS: list[dict[str, Any]] = [
         "value_type": "numericSingle",
         "decimals": 2,
         "labels": None,
+        # Therapeutic range varies (2.0–3.0 typical, 2.5–3.5 mechanical
+        # valve). Default to general range; clinicians override.
+        "target_low": 2.0,
+        "target_high": 3.0,
+        "target_label": "2,0–3,0",
     },
     {
         "parameter_key": "oxygen_saturation",
@@ -77,6 +97,9 @@ PREDEFINED_PARAMETERS: list[dict[str, Any]] = [
         "value_type": "numericSingle",
         "decimals": 0,
         "labels": None,
+        "target_low": 95,
+        "target_high": None,
+        "target_label": "≥95",
     },
     {
         "parameter_key": "heart_rate",
@@ -85,6 +108,9 @@ PREDEFINED_PARAMETERS: list[dict[str, Any]] = [
         "value_type": "numericSingle",
         "decimals": 0,
         "labels": None,
+        "target_low": 60,
+        "target_high": 100,
+        "target_label": "60–100",
     },
 ]
 

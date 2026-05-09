@@ -34,6 +34,7 @@ from app.routers import (
     routines,
     settings,
     supplies,
+    therapy_data,
 )
 
 logger = logging.getLogger("pharmapp")
@@ -177,6 +178,8 @@ def create_app() -> FastAPI:
     app.include_router(caregivers.router, prefix="/v2")
     app.include_router(activity_logs.router, prefix="/v2")
     app.include_router(device_tokens.router, prefix="/v2")
+    # Aggregated therapy data + PDF report
+    app.include_router(therapy_data.router, prefix="/v2")
     # DSAR (GDPR art. 15/17): export, delete, access-log under /v2/me/...
     app.include_router(dsar.router, prefix="/v2")
 

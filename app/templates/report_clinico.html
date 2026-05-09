@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <title>Riepilogo terapie · {{ profile_name }}</title>
+  <style>{{ css|safe }}</style>
+</head>
+<body>
+
+  <header class="pdf-head">
+    <div class="left">
+      <div class="eyebrow">{{ eyebrow }}</div>
+      <h1 class="patient-name">{{ profile_name }}</h1>
+      <p class="date-range">{{ period_label }}</p>
+    </div>
+    <div class="right">
+      <div class="gen-label">Generato il</div>
+      <div class="gen-value">{{ generated_label }}</div>
+    </div>
+  </header>
+
+  {% if tracked_meds or tracked_params %}
+  <section class="tracked">
+    <div class="col">
+      <div class="col-label">Farmaci tracciati · {{ tracked_meds|length }}</div>
+      {% for m in tracked_meds %}
+      <div class="item">
+        <span class="name">{{ m.name }}</span>
+        <span class="meta">{{ m.dose_label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="col">
+      <div class="col-label">Misurazioni tracciate</div>
+      {% for p in tracked_params %}
+      <div class="item">
+        <span class="name">{{ p.name }}</span>
+        <span class="meta">{{ p.frequency }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if adherence and adherence.medications %}
+  {% for med in adherence.medications %}
+  <article class="stack-row">
+    <div class="row-head">
+      <span class="name">{{ med.name }}</span>
+      <span class="pct">{{ med.rate_pct|round(0)|int }}<span class="unit">%</span></span>
+    </div>
+    {% if med.bars %}
+      {{ macros.bar_chart(med.bars)|safe }}
+      {{ macros.x_axis_dates(med.bars)|safe }}
+    {% elif med.monthly %}
+      {{ macros.monthly_chart(med.monthly)|safe }}
+      {{ macros.x_axis_buckets(med.monthly)|safe }}
+    {% elif med.sparkline %}
+      {{ macros.sparkline_chart(med.sparkline)|safe }}
+      {{ macros.x_axis_sparkline(med.sparkline)|safe }}
+    {% endif %}
+  </article>
+  {% endfor %}
+  {% endif %}
+
+  {% if parameters %}
+  {% for param in parameters %}
+  <article class="stack-row">
+    <div class="row-head">
+      <span class="name">{{ param.name }}</span>
+      <span class="pct">{{ param.last_value }}<span class="unit">{{ param.unit or '' }}</span></span>
+    </div>
+    {% if param.target_label or param.trend_label %}
+    <div class="row-meta">
+      {% if param.target_label %}<span>target {{ param.target_label }}</span>{% endif %}
+      {% if param.target_label and param.trend_label %} · {% endif %}
+      {% if param.trend_label %}<span>{{ param.trend_label }}</span>{% endif %}
+    </div>
+    {% endif %}
+    {{ macros.parameter_chart(param)|safe }}
+  </article>
+  {% endfor %}
+  {% endif %}
+
+  {% if adherence %}
+  <div class="legend">
+    <span><span class="count">{{ adherence.summary.taken + adherence.summary.late + adherence.summary.partial }}</span><span class="swatch sw-presa"></span>presa regolare</span>
+    {% if adherence.summary.late %}<span><span class="count">{{ adherence.summary.late }}</span><span class="swatch sw-ritardo"></span>con ritardo</span>{% endif %}
+    {% if adherence.summary.skipped %}<span><span class="count">{{ adherence.summary.skipped }}</span><span class="swatch sw-saltata"></span>saltata</span>{% endif %}
+    {% if notes %}<span><span class="count">{{ notes|length }}</span>con nota</span>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if notes %}
+  <section class="notes">
+    {% for n in notes %}
+    <div class="adh-note-row">
+      <span class="num">{{ loop.index }}</span><span class="med">{{ n.medication_name }}</span> · <span class="when">{{ n.when_label }}</span><span class="quote">"{{ n.snippet }}"</span>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <footer class="pdf-foot">
+    <div class="disclaimer">
+      Dati auto-dichiarati tramite app Pharma Reminder. L'aderenza è registrata via conferme di assunzione manuali nell'app. Le dosi giustificate con annotazione del paziente sono distinte da quelle non confermate.
+    </div>
+  </footer>
+
+</body>
+</html>
