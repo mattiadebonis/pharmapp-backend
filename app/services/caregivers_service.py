@@ -340,7 +340,7 @@ async def create_pending_change(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"error": {"code": "forbidden", "message": "Not an active caregiver for this relation"}},
         )
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     payload["caregiver_relation_id"] = str(relation_id)
     if "expires_at" not in payload:
         payload["expires_at"] = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()

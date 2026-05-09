@@ -211,7 +211,7 @@ async def update_measurement(
     profile_id = UUID(existing["profile_id"])
     meta = await _resolve_parameter(supabase, profile_id, parameter_key)
 
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     # If any value field is in the patch, re-validate against the type.
     if any(
         f in payload

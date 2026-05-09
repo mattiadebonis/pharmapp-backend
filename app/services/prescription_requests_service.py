@@ -65,7 +65,7 @@ async def create_prescription_request(
 ) -> dict:
     """Create a prescription request for a medication."""
     await _verify_medication_ownership(supabase, user_id, medication_id)
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     payload["medication_id"] = str(medication_id)
     # Client-generated id enables offline-queue idempotency. Fallback here if missing.
     if not payload.get("id"):
@@ -117,7 +117,7 @@ async def update_prescription_request(
 ) -> dict:
     """Update a prescription request (typically status -> purchased | cancelled)."""
     await _verify_medication_ownership(supabase, user_id, medication_id)
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     if not payload:
         return await get_prescription_request(
             supabase, user_id, medication_id, request_id

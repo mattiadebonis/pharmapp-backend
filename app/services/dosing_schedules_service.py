@@ -50,7 +50,7 @@ async def create_dosing_schedule(
 ) -> dict:
     """Create a dosing schedule for a medication."""
     await _verify_medication_ownership(supabase, user_id, medication_id)
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     payload["medication_id"] = str(medication_id)
     result = supabase.table("dosing_schedules").insert(payload).execute()
     return result.data[0]
@@ -85,7 +85,7 @@ async def update_dosing_schedule(
 ) -> dict:
     """Update a dosing schedule, verifying medication ownership."""
     await _verify_medication_ownership(supabase, user_id, medication_id)
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     if not payload:
         return await get_dosing_schedule(supabase, user_id, medication_id, schedule_id)
     result = (

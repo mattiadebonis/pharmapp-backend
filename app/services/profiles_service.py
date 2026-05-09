@@ -17,7 +17,7 @@ async def list_profiles(supabase: Client, user_id: UUID) -> list[dict]:
 
 async def create_profile(supabase: Client, user_id: UUID, data) -> dict:
     """Create a new profile for the user."""
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     payload["user_id"] = str(user_id)
     result = supabase.table("profiles").insert(payload).execute()
     return result.data[0]
@@ -59,7 +59,7 @@ async def get_own_profile(supabase: Client, user_id: UUID) -> dict:
 
 async def update_profile(supabase: Client, user_id: UUID, profile_id: UUID, data) -> dict:
     """Update a profile, verifying ownership."""
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     if not payload:
         return await get_profile(supabase, user_id, profile_id)
     result = (

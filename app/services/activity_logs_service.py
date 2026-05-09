@@ -7,7 +7,7 @@ from supabase import Client
 
 async def create_log(supabase: Client, user_id: UUID, data) -> dict:
     """Create an activity log entry."""
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     payload["user_id"] = str(user_id)
     # Convert UUID fields to strings
     for uuid_field in ("profile_id", "medication_id"):

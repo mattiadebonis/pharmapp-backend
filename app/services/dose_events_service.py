@@ -100,7 +100,7 @@ async def create_dose_event(supabase: Client, user_id: UUID, data) -> dict:
 
     The ``profile_id`` in the payload must belong to the user.
     """
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     # Verify profile ownership
     profile_id = payload.get("profile_id")
     if not profile_id:
@@ -145,7 +145,7 @@ async def update_dose_event(
 ) -> dict:
     """Update a dose event (e.g. mark as taken/missed/skipped)."""
     await _verify_dose_event_ownership(supabase, user_id, event_id)
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     if not payload:
         return await get_dose_event(supabase, user_id, event_id)
     # Convert datetime fields

@@ -208,7 +208,7 @@ async def update_custom_parameter(
     data: ParameterUpdateRequest,
 ) -> dict[str, Any]:
     await get_custom_parameter(supabase, user_id, parameter_id)
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     if not payload:
         return await get_custom_parameter(supabase, user_id, parameter_id)
     res = (

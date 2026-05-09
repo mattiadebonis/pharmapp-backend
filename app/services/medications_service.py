@@ -63,7 +63,7 @@ async def create_medication(supabase: Client, user_id: UUID, data) -> dict:
     The request body must include ``profile_id``.  Ownership of that profile
     is verified before inserting.
     """
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     profile_id = payload.get("profile_id")
     if not profile_id:
         raise HTTPException(
@@ -138,7 +138,7 @@ async def update_medication(
 ) -> dict:
     """Update a medication, verifying ownership."""
     await _verify_medication_ownership(supabase, user_id, medication_id)
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     if not payload:
         return await get_medication(supabase, user_id, medication_id)
     if "prescribing_doctor_id" in payload and payload["prescribing_doctor_id"]:

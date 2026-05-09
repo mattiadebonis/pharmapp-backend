@@ -1,5 +1,7 @@
+from app.schemas.activity_log import ActivityLogDTO
 from app.schemas.base import PharmaBaseModel
 from app.schemas.caregiver import CaregiverRelationDTO, PendingChangeDTO
+from app.schemas.device_token import DeviceTokenDTO
 from app.schemas.doctor import DoctorDTO
 from app.schemas.dose_event import DoseEventDTO
 from app.schemas.medication import MedicationWithDetailsDTO
@@ -25,3 +27,5 @@ class BootstrapResponse(PharmaBaseModel):
     routines: list[RoutineWithStepsDTO] = []
     parameters: list[ParameterDTO] = []
     recent_measurements: list[MeasurementDTO] = []
+    activity_logs: list[ActivityLogDTO] = []
+    device_tokens: list[DeviceTokenDTO] = []

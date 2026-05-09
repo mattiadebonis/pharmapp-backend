@@ -56,7 +56,7 @@ async def upsert_supply(
     """
     await _verify_medication_ownership(supabase, user_id, medication_id)
     mid = str(medication_id)
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
 
     existing = (
         supabase.table("supplies")

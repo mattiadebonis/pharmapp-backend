@@ -51,7 +51,7 @@ async def create_prescription(
 ) -> dict:
     """Create a prescription for a medication."""
     await _verify_medication_ownership(supabase, user_id, medication_id)
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     payload["medication_id"] = str(medication_id)
     # Convert date fields to ISO strings if they are date objects
     for date_field in ("issued_date", "expiry_date", "requested_at"):
@@ -93,7 +93,7 @@ async def update_prescription(
 ) -> dict:
     """Update a prescription, verifying medication ownership."""
     await _verify_medication_ownership(supabase, user_id, medication_id)
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     if not payload:
         return await get_prescription(supabase, user_id, medication_id, prescription_id)
     # Convert date fields to ISO strings if they are date objects

@@ -49,7 +49,7 @@ async def update_settings(supabase: Client, user_id: UUID, data) -> dict:
     If no settings row exists yet, one is created first.
     """
     uid = str(user_id)
-    payload = data.model_dump(exclude_none=True)
+    payload = data.model_dump(exclude_none=True, mode="json")
     if not payload:
         return await get_or_create_settings(supabase, user_id)
 
