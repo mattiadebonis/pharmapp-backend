@@ -189,7 +189,9 @@ def _format_parameters(report: TherapyDataReport):
 
     Pulls target ranges from the predefined catalog and computes a
     trend delta (last − first) when meaningful (numericSingle with at
-    least 2 points and span ≥ 14 days).
+    least 2 points and span ≥ 14 days). For numericDouble (blood
+    pressure et al), the headline value is the **median** of the
+    series — clinicians look at central tendency, not the last reading.
     """
     from app.services.parameters_service import get_predefined  # local
 
@@ -200,14 +202,24 @@ def _format_parameters(report: TherapyDataReport):
         last = p.points[-1] if p.points else None
         first = p.points[0] if p.points else None
         meta = get_predefined(p.parameter_key) or {}
+        # Headline value: median (numericDouble) or last (numericSingle).
+        # Median is more clinically relevant for time-series of repeated
+        # measurements like blood pressure.
         if last is None:
             last_value = "—"
+            value_caption: str | None = None
         elif p.value_type == "numericDouble":
-            v1 = "" if last.v1 is None else _format_number(last.v1)
-            v2 = "" if last.v2 is None else _format_number(last.v2)
-            last_value = f"{v1}/{v2}" if v1 and v2 else (v1 or v2 or "—")
+            v1s = sorted([pt.v1 for pt in p.points if pt.v1 is not None])
+            v2s = sorted([pt.v2 for pt in p.points if pt.v2 is not None])
+            med_v1 = _median(v1s)
+            med_v2 = _median(v2s)
+            v1str = _format_number(med_v1) if med_v1 is not None else ""
+            v2str = _format_number(med_v2) if med_v2 is not None else ""
+            last_value = f"{v1str}/{v2str}" if v1str and v2str else (v1str or v2str or "—")
+            value_caption = "medi"  # rendered next to value as "/82 mmHg medi"
         else:
             last_value = _format_number(last.v1) if last.v1 is not None else "—"
+            value_caption = None
 
         # Trend delta — numericSingle, ≥ 2 weeks span, ≥ 1 decimal of
         # actual change (skip the noise of "0 kg in 3 sett").
@@ -238,11 +250,23 @@ def _format_parameters(report: TherapyDataReport):
             "labels": p.labels,
             "points": p.points,
             "last_value": last_value,
+            "value_caption": value_caption,
             "target_label": meta.get("target_label"),
             "target_lines": target,
             "trend_label": trend_label,
         })
     return out
+
+
+def _median(sorted_values: list[float]) -> float | None:
+    """Median of an already-sorted list. Returns None if empty."""
+    n = len(sorted_values)
+    if n == 0:
+        return None
+    mid = n // 2
+    if n % 2 == 1:
+        return sorted_values[mid]
+    return (sorted_values[mid - 1] + sorted_values[mid]) / 2.0
 
 
 def _humanize_span(days: int) -> str:
@@ -390,63 +414,128 @@ class _Macros:
         return f'<div class="x-axis">{"".join(labels)}</div>'
 
     def parameter_chart(self, param: dict[str, Any]) -> str:
+        """Render the chart for a single parameter series.
+
+        Layers (back-to-front):
+            1. Dashed clinical target line(s)
+            2. Connecting line(s)
+            3. Scatter dots at each measurement
+        """
         points: list[ParameterPoint] = param["points"]
         target_lines: list[dict[str, Any]] = param.get("target_lines") or []
         if not points:
             return '<div class="bar-chart" style="height:22pt;"></div>'
-        height = 28
+        height = 32
         if param["value_type"] == "numericDouble":
             v1s = [p.v1 for p in points if p.v1 is not None]
             v2s = [p.v2 for p in points if p.v2 is not None]
             all_vals = v1s + v2s
-            # Include target line values so the line is in-frame.
             all_vals += [t["value"] for t in target_lines]
             if not all_vals:
                 return ""
             y_min = min(all_vals) - 5
             y_max = max(all_vals) + 5
             xs = list(range(len(points)))
-            target_svg = "".join(
-                self._svg_target(
-                    value=t["value"], color=t["color"],
-                    y_min=y_min, y_max=y_max, height_pt=height,
-                    inline=(idx > 0),
-                )
-                for idx, t in enumerate(target_lines)
-            )
+            target_svg = self._stack_targets(target_lines, y_min, y_max, height)
             line1 = self._svg_line(
                 xs=xs, ys=[(p.v1 or 0) for p in points],
                 stroke="#2B7DD4", y_min=y_min, y_max=y_max, height_pt=height,
                 inline=bool(target_svg),
+            )
+            dots1 = self._svg_dots(
+                xs=xs, ys=[(p.v1 or 0) for p in points],
+                stroke="#2B7DD4", y_min=y_min, y_max=y_max, height_pt=height,
+                inline=True,
             )
             line2 = self._svg_line(
                 xs=xs, ys=[(p.v2 or 0) for p in points],
                 stroke="#1D9E75", y_min=y_min, y_max=y_max, height_pt=height,
                 inline=True,
             )
-            return target_svg + line1 + line2
+            dots2 = self._svg_dots(
+                xs=xs, ys=[(p.v2 or 0) for p in points],
+                stroke="#1D9E75", y_min=y_min, y_max=y_max, height_pt=height,
+                inline=True,
+            )
+            return target_svg + line1 + dots1 + line2 + dots2
         else:
             ys = [(p.v1 or 0) for p in points]
             y_min = min(ys) - (max(ys) - min(ys) + 1) * 0.1
             y_max = max(ys) + (max(ys) - min(ys) + 1) * 0.1
-            # Include target lines in y-range so they're visible.
             for t in target_lines:
                 y_min = min(y_min, t["value"] - 0.05 * abs(t["value"]))
                 y_max = max(y_max, t["value"] + 0.05 * abs(t["value"]))
-            target_svg = "".join(
-                self._svg_target(
-                    value=t["value"], color=t["color"],
-                    y_min=y_min, y_max=y_max, height_pt=height,
-                    inline=(idx > 0),
-                )
-                for idx, t in enumerate(target_lines)
-            )
+            target_svg = self._stack_targets(target_lines, y_min, y_max, height)
+            xs = list(range(len(points)))
             line = self._svg_line(
-                xs=list(range(len(points))), ys=ys,
+                xs=xs, ys=ys,
                 stroke="#1D9E75", y_min=y_min, y_max=y_max, height_pt=height,
                 inline=bool(target_svg),
             )
-            return target_svg + line
+            dots = self._svg_dots(
+                xs=xs, ys=ys,
+                stroke="#1D9E75", y_min=y_min, y_max=y_max, height_pt=height,
+                inline=True,
+            )
+            return target_svg + line + dots
+
+    def x_axis_param_dates(self, param: dict[str, Any]) -> str:
+        """X-axis tick labels for a parameter chart — picks ~6 evenly
+        spaced points and renders day/month."""
+        points: list[ParameterPoint] = param.get("points") or []
+        n = len(points)
+        if n == 0:
+            return ""
+        ticks = self._pick_indices(n, max_ticks=min(n, 6))
+        labels = []
+        for i, pt in enumerate(points):
+            if i in ticks:
+                labels.append(f'<span class="tick">{pt.recorded_at.day}\n{pt.recorded_at.month}</span>')
+            else:
+                labels.append('<span class="tick"></span>')
+        return f'<div class="x-axis">{"".join(labels)}</div>'
+
+    def _stack_targets(
+        self, target_lines: list[dict[str, Any]],
+        y_min: float, y_max: float, height_pt: int,
+    ) -> str:
+        return "".join(
+            self._svg_target(
+                value=t["value"], color=t["color"],
+                y_min=y_min, y_max=y_max, height_pt=height_pt,
+                inline=(idx > 0),
+            )
+            for idx, t in enumerate(target_lines)
+        )
+
+    def _svg_dots(
+        self, *, xs: list[int], ys: list[float],
+        stroke: str, y_min: float, y_max: float,
+        height_pt: int, inline: bool = False,
+    ) -> str:
+        """Scatter dots at each (x, y). Used to overlay individual
+        measurements on top of a connecting sparkline so clinicians
+        can see actual sample timing."""
+        if not xs or y_max <= y_min:
+            return ""
+        width = 480
+        # Scale dot radius down for dense series so they don't overlap
+        n = len(xs)
+        radius = 2.6 if n <= 30 else (2.0 if n <= 90 else 1.4)
+        denom = max(1, max(xs))
+        circles = []
+        for x, y in zip(xs, ys):
+            sx = (x / denom) * width
+            sy = height_pt * 4 - ((y - y_min) / (y_max - y_min)) * (height_pt * 4)
+            circles.append(
+                f'<circle cx="{sx:.1f}" cy="{sy:.1f}" r="{radius}" fill="{stroke}"/>'
+            )
+        style = "" if not inline else f"margin-top:-{height_pt}pt;"
+        return (
+            f'<svg class="row-chart" viewBox="0 0 {width} {height_pt * 4}" '
+            f'preserveAspectRatio="none" style="height:{height_pt}pt; {style}">'
+            f'{"".join(circles)}</svg>'
+        )
 
     def _svg_target(
         self, *, value: float, color: str,

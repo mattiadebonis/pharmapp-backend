@@ -68,7 +68,7 @@
   <article class="stack-row">
     <div class="row-head">
       <span class="name">{{ param.name }}</span>
-      <span class="pct">{{ param.last_value }}<span class="unit">{{ param.unit or '' }}</span></span>
+      <span class="pct">{{ param.last_value }}<span class="unit">{{ param.unit or '' }}{% if param.value_caption %} {{ param.value_caption }}{% endif %}</span></span>
     </div>
     {% if param.target_label or param.trend_label %}
     <div class="row-meta">
@@ -78,6 +78,7 @@
     </div>
     {% endif %}
     {{ macros.parameter_chart(param)|safe }}
+    {{ macros.x_axis_param_dates(param)|safe }}
   </article>
   {% endfor %}
   {% endif %}
