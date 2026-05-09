@@ -2,29 +2,20 @@
 
 @page {
   size: A4 portrait;
-  margin: 18mm 14mm 22mm 14mm;
-  @bottom-left {
-    content: "Generato da Pharma Reminder · pharmareminder.app";
-    font: 9pt -apple-system, "Inter", system-ui, sans-serif;
-    color: #888780;
-  }
-  /* Page counter only visible from page 2 onwards via :nth() trick.
-     Reference mockups have a single-page footer with no counter. */
-}
-
-/* Multi-page documents: show counter on every page from the second on.
-   WeasyPrint supports named pages — switch to a "continuation" page on
-   anything past page 1 via the explicit page-break-before on stack-rows
-   that overflow. */
-@page :first {
-  @bottom-right { content: ""; }
-}
-@page {
+  /* Reference spec: 56px lateral, 64px bottom. Convert to mm to keep
+     WeasyPrint happy without DPR drift (1px ≈ 0.265mm). */
+  margin: 14.8mm 14.8mm 16.9mm 14.8mm;
   @bottom-right {
     content: "p. " counter(page) " / " counter(pages);
-    font: 9pt -apple-system, "Inter", system-ui, sans-serif;
-    color: #888780;
+    font: 8.5pt -apple-system, "Inter", system-ui, sans-serif;
+    color: #AAA59E;
   }
+}
+
+/* Single-page docs: hide the counter on first page when it's also the
+   last (Reference mockups for Marco/Mattia are single-page). */
+@page :first {
+  @bottom-right { content: ""; }
 }
 
 :root {
@@ -148,10 +139,14 @@ html, body {
 
 /* ----- Stack rows (one per medication / parameter) ----- */
 .stack-row {
-  margin-bottom: 14pt;
+  margin-bottom: 12pt;
+  padding-bottom: 10pt;
+  border-bottom: 0.25pt solid var(--border-2);
   page-break-inside: avoid;
   break-inside: avoid;
 }
+
+.stack-row:last-of-type { border-bottom: none; padding-bottom: 0; }
 
 .row-head {
   display: flex;
@@ -161,16 +156,18 @@ html, body {
 }
 
 .row-head .name {
-  font-size: 13pt;
+  font-size: 12pt;
   font-weight: 500;
   color: var(--text-1);
+  letter-spacing: 0.005em;
 }
 
 .row-head .pct {
   font-family: "DM Serif Display", Georgia, serif;
-  font-size: 17pt;
+  font-size: 18pt;
   color: var(--text-1);
   font-weight: 400;
+  line-height: 1;
 }
 
 .row-head .pct .unit {
@@ -246,11 +243,11 @@ html, body {
 .adh-note-row {
   font-size: 10pt;
   color: var(--text-1);
-  line-height: 1.65;
-  padding: 4pt 0;
+  line-height: 1.7;
+  padding: 5pt 0;
   border-bottom: 0.25pt solid var(--border-2);
-  padding-left: 26pt;
-  text-indent: -26pt;
+  padding-left: 22pt;
+  text-indent: -22pt;
   page-break-inside: avoid;
 }
 
@@ -258,7 +255,7 @@ html, body {
 
 .adh-note-row .num {
   font-family: ui-monospace, Menlo, monospace;
-  font-size: 8.5pt;
+  font-size: 9pt;
   color: var(--text-2);
   margin-right: 6pt;
   font-variant-numeric: tabular-nums;
@@ -280,17 +277,27 @@ html, body {
 }
 
 /* ----- Footer disclaimer ----- */
-.disclaimer {
+.pdf-foot {
   margin-top: 18pt;
   padding-top: 10pt;
   border-top: 0.5pt solid var(--border-1);
+  page-break-before: avoid;
+}
+
+.disclaimer {
   font-size: 9pt;
   color: var(--text-2);
   font-style: italic;
   line-height: 1.55;
 }
 
-.pdf-foot { page-break-before: avoid; }
+.brand-line {
+  margin-top: 6pt;
+  font-size: 8.5pt;
+  color: var(--text-3);
+  font-style: normal;
+  letter-spacing: 0.02em;
+}
 
 /* ----- Bar chart (binary, per-dose) -----
    Gap auto-scales: short ranges (≤28 bars) use 1pt for clean separation;
