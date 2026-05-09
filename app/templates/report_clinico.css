@@ -112,7 +112,7 @@ html, body {
   color: var(--text-2);
 }
 
-/* ----- Tracked summary (2-column) ----- */
+/* ----- Tracked summary (2-column or single-col) ----- */
 .tracked {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -120,6 +120,10 @@ html, body {
   padding: 12pt 0 16pt 0;
   border-top: 0.5pt solid var(--border-1);
   margin-bottom: 18pt;
+}
+
+.tracked.single-col {
+  grid-template-columns: 1fr;
 }
 
 .tracked .col-label {

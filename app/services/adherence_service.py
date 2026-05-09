@@ -739,6 +739,14 @@ def _build_adherence(
                 p += 1
             elif status == "skipped":
                 sk += 1
+
+        # Pad with `not_due` placeholders for days that have no expected
+        # dose at all (cycle / weekly_overrides / tapering). Keeps the
+        # x-axis uniform across all rows so the visual rhythm matches
+        # the reference PDFs (28-day frame for everyone, with gaps for
+        # non-prescribed days).
+        if bucket == "per_dose":
+            bars = _pad_with_not_due(bars, range_from, range_to)
         rate = ((t + l + p) / e * 100.0) if e > 0 else 0.0
         series = MedicationSeries(
             medication_id=UUID(med_id),
@@ -840,6 +848,37 @@ def _to_float(v: Any) -> float | None:
 # ---------------------------------------------------------------------------
 # Internals — notes
 # ---------------------------------------------------------------------------
+def _pad_with_not_due(
+    bars: list[MedicationBar], range_from: date, range_to: date
+) -> list[MedicationBar]:
+    """Insert `not_due` placeholder bars for days within the period
+    that have no expected dose. Keeps the x-axis uniform.
+
+    For meds with multiple doses per day, days where AT LEAST ONE dose
+    exists are not padded (existing bars carry the day). For days
+    completely empty, one not_due bar at noon UTC is inserted.
+    """
+    existing_days = {b.due_at.date() for b in bars}
+    cur = range_from
+    placeholders: list[MedicationBar] = []
+    while cur <= range_to:
+        if cur not in existing_days:
+            placeholders.append(MedicationBar(
+                due_at=datetime.combine(cur, time(12, 0), tzinfo=UTC),
+                status="not_due",
+                taken_at=None,
+                delay_min=None,
+                pills_expected=None,
+                pills_taken=None,
+            ))
+        cur += timedelta(days=1)
+    if not placeholders:
+        return bars
+    merged = bars + placeholders
+    merged.sort(key=lambda b: b.due_at)
+    return merged
+
+
 def _schedule_label(schedules: list[dict[str, Any]]) -> str | None:
     """Compose a short human-readable summary of the active schedules
     for one medication. Examples::

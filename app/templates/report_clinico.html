@@ -20,7 +20,7 @@
   </header>
 
   {% if tracked_meds or tracked_params %}
-  <section class="tracked">
+  <section class="tracked {% if not tracked_params %}single-col{% endif %}">
     <div class="col">
       <div class="col-label">Farmaci tracciati · {{ tracked_meds|length }}</div>
       {% for m in tracked_meds %}
@@ -30,6 +30,7 @@
       </div>
       {% endfor %}
     </div>
+    {% if tracked_params %}
     <div class="col">
       <div class="col-label">Misurazioni tracciate</div>
       {% for p in tracked_params %}
@@ -39,6 +40,7 @@
       </div>
       {% endfor %}
     </div>
+    {% endif %}
   </section>
   {% endif %}
 
