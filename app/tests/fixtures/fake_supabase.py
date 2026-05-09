@@ -63,9 +63,16 @@ class _Query:
         self._select = cols
         return self
 
-    def insert(self, payload: dict) -> "_Query":
+    def insert(self, payload) -> "_Query":
+        # Real supabase-py accepts either a dict (single row) or a
+        # list[dict] (bulk insert). FakeSupabase needs to mirror both —
+        # the medication+schedules atomic insert path uses bulk for
+        # the dosing_schedules array.
         self._op = "insert"
-        self._payload = dict(payload)
+        if isinstance(payload, list):
+            self._payload = [dict(row) for row in payload]
+        else:
+            self._payload = dict(payload)
         return self
 
     def update(self, payload: dict) -> "_Query":
@@ -150,9 +157,20 @@ class _Query:
 
     def _do_insert(self) -> _Result:
         rows = self._client._tables.setdefault(self._table_name, [])
+        recorded = self._client._inserts.setdefault(self._table_name, [])
+        if isinstance(self._payload, list):
+            inserted = []
+            for src in self._payload:
+                row = dict(src)
+                row.setdefault("id", self._client._next_id(self._table_name))
+                rows.append(deepcopy(row))
+                inserted.append(deepcopy(row))
+            recorded.extend(inserted)
+            return _Result(inserted)
         row = dict(self._payload)
         row.setdefault("id", self._client._next_id(self._table_name))
         rows.append(deepcopy(row))
+        recorded.append(deepcopy(row))
         return _Result([deepcopy(row)])
 
     def _do_update(self) -> _Result:
@@ -244,6 +262,14 @@ class FakeSupabase:
             for name, rows in seed.items():
                 self._tables[name] = [deepcopy(r) for r in rows]
         self._counters: dict[str, int] = {}
+        # Insert log per table — tests assert on this to verify that a
+        # write actually hit a given table (e.g. dosing_schedules row
+        # for the embedded-schedules path).
+        self._inserts: dict[str, list[dict[str, Any]]] = {}
+
+    @property
+    def recorded_inserts(self) -> dict[str, list[dict[str, Any]]]:
+        return self._inserts
 
     def table(self, name: str) -> _Query:
         return _Query(self, name)

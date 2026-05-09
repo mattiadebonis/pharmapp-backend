@@ -1,0 +1,292 @@
+{
+  "activity_logs": [],
+  "caregiver_relations": [],
+  "device_tokens": [],
+  "doctors": [
+    {
+      "address": null,
+      "created_at": "2026-05-01T08:00:00Z",
+      "email": null,
+      "id": "44444444-4444-4444-4444-444444444444",
+      "name": "Mario",
+      "phone": null,
+      "prescription_message_template": null,
+      "profile_ids": [
+        "11111111-1111-1111-1111-111111111111"
+      ],
+      "schedule_json": null,
+      "secretary_email": null,
+      "secretary_name": null,
+      "secretary_phone": null,
+      "secretary_schedule_json": null,
+      "specialization": "cardiologo",
+      "surname": "Rossi",
+      "updated_at": "2026-05-01T08:00:00Z",
+      "user_id": "00000000-0000-4000-8000-000000000001"
+    }
+  ],
+  "dose_events": [
+    {
+      "actor_device_id": null,
+      "actor_user_id": null,
+      "auto_registered_at": null,
+      "created_at": "2026-05-01T08:00:00Z",
+      "dosing_schedule_id": "33333333-3333-3333-3333-333333333333",
+      "due_at": "2026-05-01T08:00:00Z",
+      "id": "88888888-8888-8888-8888-888888888888",
+      "injection_site": null,
+      "medication_id": "22222222-2222-2222-2222-222222222222",
+      "note": null,
+      "pills_taken": null,
+      "profile_id": "11111111-1111-1111-1111-111111111111",
+      "snooze_count": 0,
+      "status": "pending",
+      "taken_at": null,
+      "updated_at": "2026-05-01T08:00:00Z",
+      "user_corrected_at": null
+    }
+  ],
+  "medications": [
+    {
+      "catalog_country": null,
+      "catalog_product_key": null,
+      "catalog_snapshot": null,
+      "category": null,
+      "color": null,
+      "created_at": "2026-05-01T08:00:00Z",
+      "id": "22222222-2222-2222-2222-222222222222",
+      "image_url": null,
+      "injection_sites": [],
+      "is_archived": false,
+      "is_paused": false,
+      "managed_by_routine_id": null,
+      "name": "Tachipirina",
+      "notes": null,
+      "prescribing_doctor_id": null,
+      "prescriptions": [],
+      "principle": "paracetamolo",
+      "profile_id": "11111111-1111-1111-1111-111111111111",
+      "requires_prescription": false,
+      "schedules": [
+        {
+          "condition": null,
+          "created_at": "2026-05-01T08:00:00Z",
+          "cycle_days": null,
+          "cycle_pattern": null,
+          "cycle_start_date": null,
+          "cycle_weekdays": null,
+          "daily_limit": null,
+          "format": null,
+          "id": "33333333-3333-3333-3333-333333333333",
+          "importance": "standard",
+          "is_active": true,
+          "late_threshold_minutes": null,
+          "max_per_day": null,
+          "medication_id": "22222222-2222-2222-2222-222222222222",
+          "min_interval_hours": null,
+          "notification_level": "normal",
+          "notifications_silenced": false,
+          "notify_day_before": false,
+          "pills_per_dose": 1.0,
+          "post_tapering_behavior": null,
+          "rrule": "FREQ=DAILY",
+          "schedule_type": "scheduled",
+          "snooze_minutes": null,
+          "tapering_steps": null,
+          "times": [
+            {
+              "time": "08:00"
+            }
+          ],
+          "updated_at": "2026-05-01T08:00:00Z",
+          "variable_subtype": null,
+          "weekly_alert_threshold": null,
+          "weekly_overrides": null
+        }
+      ],
+      "shared_with_caregiver": false,
+      "start_date": null,
+      "supply": {
+        "created_at": "2026-05-01T08:00:00Z",
+        "current_pills": 30.0,
+        "id": "77777777-7777-7777-7777-777777777777",
+        "medication_id": "22222222-2222-2222-2222-222222222222",
+        "package_label": null,
+        "package_units": 30,
+        "pills_at_purchase": 30.0,
+        "purchase_date": null,
+        "refill_threshold_days": 7,
+        "updated_at": "2026-05-01T08:00:00Z"
+      },
+      "tracking_mode": "active",
+      "updated_at": "2026-05-01T08:00:00Z"
+    }
+  ],
+  "parameters": [
+    {
+      "created_at": null,
+      "decimals": 0,
+      "id": null,
+      "is_predefined": true,
+      "labels": null,
+      "name": "Glicemia",
+      "parameter_key": "glycemia",
+      "profile_id": null,
+      "unit": "mg/dL",
+      "updated_at": null,
+      "value_type": "numericSingle"
+    },
+    {
+      "created_at": null,
+      "decimals": 0,
+      "id": null,
+      "is_predefined": true,
+      "labels": [
+        "Sistolica",
+        "Diastolica"
+      ],
+      "name": "Pressione arteriosa",
+      "parameter_key": "blood_pressure",
+      "profile_id": null,
+      "unit": "mmHg",
+      "updated_at": null,
+      "value_type": "numericDouble"
+    },
+    {
+      "created_at": null,
+      "decimals": 1,
+      "id": null,
+      "is_predefined": true,
+      "labels": null,
+      "name": "Peso corporeo",
+      "parameter_key": "weight",
+      "profile_id": null,
+      "unit": "kg",
+      "updated_at": null,
+      "value_type": "numericSingle"
+    },
+    {
+      "created_at": null,
+      "decimals": 1,
+      "id": null,
+      "is_predefined": true,
+      "labels": null,
+      "name": "Temperatura",
+      "parameter_key": "temperature",
+      "profile_id": null,
+      "unit": "°C",
+      "updated_at": null,
+      "value_type": "numericSingle"
+    },
+    {
+      "created_at": null,
+      "decimals": 2,
+      "id": null,
+      "is_predefined": true,
+      "labels": null,
+      "name": "INR",
+      "parameter_key": "inr",
+      "profile_id": null,
+      "unit": null,
+      "updated_at": null,
+      "value_type": "numericSingle"
+    },
+    {
+      "created_at": null,
+      "decimals": 0,
+      "id": null,
+      "is_predefined": true,
+      "labels": null,
+      "name": "Saturazione O₂",
+      "parameter_key": "oxygen_saturation",
+      "profile_id": null,
+      "unit": "%",
+      "updated_at": null,
+      "value_type": "numericSingle"
+    },
+    {
+      "created_at": null,
+      "decimals": 0,
+      "id": null,
+      "is_predefined": true,
+      "labels": null,
+      "name": "Frequenza cardiaca",
+      "parameter_key": "heart_rate",
+      "profile_id": null,
+      "unit": "bpm",
+      "updated_at": null,
+      "value_type": "numericSingle"
+    },
+    {
+      "created_at": "2026-05-01T08:00:00Z",
+      "decimals": null,
+      "id": "66666666-6666-6666-6666-666666666666",
+      "is_predefined": false,
+      "labels": null,
+      "name": "Glicemia",
+      "parameter_key": "custom:66666666-6666-6666-6666-666666666666",
+      "profile_id": "11111111-1111-1111-1111-111111111111",
+      "unit": "mg/dL",
+      "updated_at": null,
+      "value_type": "numericSingle"
+    }
+  ],
+  "pending_changes": [],
+  "prescription_requests": [],
+  "profiles": [
+    {
+      "birth_date": null,
+      "color": "#2B7DD4",
+      "connection_status": null,
+      "created_at": "2026-05-01T08:00:00Z",
+      "display_name": "Mattia",
+      "emoji": "👤",
+      "id": "11111111-1111-1111-1111-111111111111",
+      "parent_user_id": null,
+      "profile_type": "own",
+      "relation_label": null,
+      "updated_at": "2026-05-01T08:00:00Z",
+      "user_id": "00000000-0000-4000-8000-000000000001"
+    }
+  ],
+  "recent_measurements": [],
+  "routines": [
+    {
+      "created_at": "2026-05-01T08:00:00Z",
+      "id": "55555555-5555-5555-5555-555555555555",
+      "is_active": true,
+      "name": "Mattina osteoporosi",
+      "profile_id": "11111111-1111-1111-1111-111111111111",
+      "rrule": "FREQ=WEEKLY;BYDAY=MO",
+      "start_time": "07:00",
+      "steps": [],
+      "updated_at": "2026-05-01T08:00:00Z"
+    }
+  ],
+  "settings": {
+    "anonymous_notifications": false,
+    "biometrics_enabled": false,
+    "catalog_country": "it",
+    "created_at": "2026-05-01T08:00:00Z",
+    "default_refill_threshold": 7,
+    "default_snooze_minutes": 10,
+    "default_tracking_mode": "passive",
+    "face_id_sensitive_actions": false,
+    "grace_minutes": 120,
+    "hide_medication_names": false,
+    "notifications_enabled": true,
+    "notify_caregivers": true,
+    "refill_alerts_enabled": true,
+    "updated_at": "2026-05-01T08:00:00Z",
+    "user_id": "00000000-0000-4000-8000-000000000001"
+  },
+  "subscription": {
+    "environment": "production",
+    "expires_at": "2027-05-01T08:00:00Z",
+    "is_trial_active": false,
+    "last_validated_at": "2026-05-01T08:00:00+00:00",
+    "original_transaction_id": "txn-snapshot",
+    "product_id": "com.pharmapp.pro.yearly",
+    "tier": "pro"
+  }
+}
