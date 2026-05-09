@@ -11,6 +11,7 @@ from app.schemas.prescription_request import PrescriptionRequestDTO
 from app.schemas.profile import ProfileDTO
 from app.schemas.routine import RoutineWithStepsDTO
 from app.schemas.settings import UserSettingsDTO
+from app.schemas.subscription import SubscriptionStateDTO
 
 
 class BootstrapResponse(PharmaBaseModel):
@@ -20,6 +21,7 @@ class BootstrapResponse(PharmaBaseModel):
     medications: list[MedicationWithDetailsDTO] = []
     doctors: list[DoctorDTO] = []
     settings: UserSettingsDTO | None = None
+    subscription: SubscriptionStateDTO | None = None
     dose_events: list[DoseEventDTO] = []
     caregiver_relations: list[CaregiverRelationDTO] = []
     pending_changes: list[PendingChangeDTO] = []

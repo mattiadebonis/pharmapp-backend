@@ -1,0 +1,65 @@
+version: "3.9"
+
+# Local Supabase stack for backend integration tests.
+#
+# Start: docker compose -f docker-compose.test.yml up -d
+# Stop:  docker compose -f docker-compose.test.yml down -v
+#
+# Then run:
+#   TEST_SUPABASE_URL=http://localhost:54321 \
+#   TEST_SUPABASE_SERVICE_ROLE_KEY=<service-role-jwt> \
+#   TEST_SUPABASE_JWT_SECRET=$JWT_SECRET \
+#   .venv/bin/pytest -m integration
+
+services:
+  pharma-test-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "54322:5432"
+    volumes:
+      # The 00_run_all.sh wrapper runs the bootstrap SQL first (auth schema,
+      # roles, helper functions), then loops over the migrations/ in
+      # lexical order. Postgres entrypoint scans only top-level files, so
+      # we mount both as siblings under different sub-paths and the script
+      # walks them.
+      - ./test-init/00_run_all.sh:/docker-entrypoint-initdb.d/00_run_all.sh:ro
+      - ./test-init:/docker-entrypoint-initdb.d/auth-bootstrap:ro
+      - ./migrations:/docker-entrypoint-initdb.d/app-migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pharma-test-rest:
+    image: postgrest/postgrest:v12.2.0
+    depends_on:
+      pharma-test-db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://postgres:postgres@pharma-test-db:5432/postgres
+      PGRST_DB_SCHEMA: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: a-string-secret-at-least-32-characters-long
+      PGRST_OPENAPI_MODE: ignore-privileges
+    expose:
+      - "3000"
+
+  pharma-test-proxy:
+    # Mimics the Supabase URL layout (``/rest/v1``) so supabase-py can
+    # talk to the test stack without bespoke routing.
+    image: nginx:1.27-alpine
+    depends_on:
+      - pharma-test-rest
+    volumes:
+      - ./test-init/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "54321:80"
+
+  # GoTrue is intentionally omitted from the test stack — backend tests
+  # use service-role JWTs minted in-process (see test_real_db.py). Add it
+  # back when adding tests that exercise sign-up / password flows.

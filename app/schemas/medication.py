@@ -4,6 +4,7 @@ from uuid import UUID
 
 from app.schemas.base import PharmaBaseModel
 from app.schemas.dosing_schedule import DosingScheduleDTO
+from app.schemas.injection_site import InjectionSiteDTO
 from app.schemas.prescription import PrescriptionDTO
 from app.schemas.supply import SupplyDTO
 
@@ -71,6 +72,7 @@ class MedicationDTO(PharmaBaseModel):
     catalog_snapshot: dict[str, Any] | None = None
     prescribing_doctor_id: UUID | None = None
     managed_by_routine_id: UUID | None = None
+    injection_sites: list[InjectionSiteDTO] = []
     created_at: datetime
     updated_at: datetime
 
@@ -96,6 +98,7 @@ class MedicationCreateRequest(PharmaBaseModel):
     notes: str | None = None
     catalog_snapshot: dict[str, Any] | None = None
     prescribing_doctor_id: UUID | None = None
+    injection_sites: list[InjectionSiteDTO] | None = None
     # Optional embedded schedules — when present, the create endpoint
     # also inserts each schedule with the new medication_id atomically.
     # Lets the iOS client persist a med + its dosing in a single round-trip.
@@ -123,6 +126,7 @@ class MedicationUpdateRequest(PharmaBaseModel):
     notes: str | None = None
     catalog_snapshot: dict[str, Any] | None = None
     prescribing_doctor_id: UUID | None = None
+    injection_sites: list[InjectionSiteDTO] | None = None
 
 
 # ---------------------------------------------------------------------------

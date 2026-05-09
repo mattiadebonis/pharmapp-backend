@@ -33,6 +33,7 @@ from app.routers import (
     routine_steps,
     routines,
     settings,
+    store,
     supplies,
     therapy_data,
 )
@@ -182,6 +183,8 @@ def create_app() -> FastAPI:
     app.include_router(therapy_data.router, prefix="/v2")
     # DSAR (GDPR art. 15/17): export, delete, access-log under /v2/me/...
     app.include_router(dsar.router, prefix="/v2")
+    # Apple StoreKit transaction verification + S2S notification webhook
+    app.include_router(store.router, prefix="/v2")
 
     return app
 

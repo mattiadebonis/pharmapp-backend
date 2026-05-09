@@ -9,6 +9,7 @@ from app.schemas.base import PharmaBaseModel
 # Enums
 # ---------------------------------------------------------------------------
 ProfileType = Literal["own", "assisted", "dependent"]
+ConnectionStatus = Literal["active", "pending"]
 
 
 # ---------------------------------------------------------------------------
@@ -23,6 +24,8 @@ class ProfileDTO(PharmaBaseModel):
     color: str | None = None
     emoji: str | None = None
     parent_user_id: UUID | None = None
+    relation_label: str | None = None
+    connection_status: ConnectionStatus | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -37,6 +40,8 @@ class ProfileCreateRequest(PharmaBaseModel):
     color: str | None = None
     emoji: str | None = None
     parent_user_id: UUID | None = None
+    relation_label: str | None = None
+    connection_status: ConnectionStatus | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -49,3 +54,5 @@ class ProfileUpdateRequest(PharmaBaseModel):
     color: str | None = None
     emoji: str | None = None
     parent_user_id: UUID | None = None
+    relation_label: str | None = None
+    connection_status: ConnectionStatus | None = None

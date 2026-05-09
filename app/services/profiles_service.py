@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -98,3 +99,127 @@ async def delete_profile(supabase: Client, user_id: UUID, profile_id: UUID) -> N
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": {"code": "not_found", "message": "Profile not found"}},
         )
+
+
+# ---------------------------------------------------------------------------
+# Managed-profile lifecycle (caregiver POV)
+# ---------------------------------------------------------------------------
+
+
+async def _fetch_profile_unscoped(supabase: Client, profile_id: UUID) -> dict:
+    """Fetch a profile without ownership scoping. Used for caregiver flows
+    where the profile belongs to another user but the current user has
+    legitimate access via a caregiver_relations row."""
+    result = supabase.table("profiles").select("*").eq("id", str(profile_id)).execute()
+    if not result.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": "Profile not found"}},
+        )
+    return result.data[0]
+
+
+async def disconnect_managed_profile(
+    supabase: Client,
+    user_id: UUID,
+    profile_id: UUID,
+) -> dict:
+    """Revoke any caregiver_relations linking the current user to the
+    profile's owner. Used when the caregiver wants to stop managing the
+    profile. Idempotent: if no relation exists, returns the profile."""
+    profile = await _fetch_profile_unscoped(supabase, profile_id)
+    if profile["user_id"] == str(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": {
+                    "code": "bad_request",
+                    "message": "Cannot disconnect from your own profile; use DELETE",
+                }
+            },
+        )
+
+    rel = (
+        supabase.table("caregiver_relations")
+        .select("id")
+        .eq("patient_user_id", profile["user_id"])
+        .eq("caregiver_user_id", str(user_id))
+        .in_("status", ["active", "patient_confirmation", "pending"])
+        .execute()
+    )
+    for row in rel.data or []:
+        supabase.table("caregiver_relations").update({"status": "revoked"}).eq("id", row["id"]).execute()
+
+    return profile
+
+
+async def resend_profile_invite(
+    supabase: Client,
+    user_id: UUID,
+    profile_id: UUID,
+) -> dict:
+    """Regenerate the invite_code on the most recent pending caregiver_relations
+    row associated with the profile's owner. The current user must be either
+    the patient who issued the invite or the profile owner."""
+    from app.services.caregivers_service import (
+        INVITE_EXPIRY_HOURS,
+        _generate_invite_code,
+    )
+
+    profile = await _fetch_profile_unscoped(supabase, profile_id)
+    rel = (
+        supabase.table("caregiver_relations")
+        .select("*")
+        .eq("patient_user_id", profile["user_id"])
+        .eq("status", "pending")
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    if not rel.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "not_found", "message": "No pending invite for this profile"}},
+        )
+    relation = rel.data[0]
+    if str(user_id) not in {relation["patient_user_id"], profile["user_id"]}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "forbidden", "message": "Cannot resend invite for this profile"}},
+        )
+
+    new_expires = (datetime.now(timezone.utc) + timedelta(hours=INVITE_EXPIRY_HOURS)).isoformat()
+    supabase.table("caregiver_relations").update(
+        {
+            "invite_code": _generate_invite_code(),
+            "invite_expires_at": new_expires,
+        }
+    ).eq("id", relation["id"]).execute()
+
+    return profile
+
+
+async def cancel_profile_connection(
+    supabase: Client,
+    user_id: UUID,
+    profile_id: UUID,
+) -> None:
+    """Cancel a pending connection to a managed profile. Deletes any pending
+    caregiver_relations rows and, if the profile was created by the current
+    user as a placeholder for the invite, removes the profile too."""
+    profile = await _fetch_profile_unscoped(supabase, profile_id)
+
+    pending = (
+        supabase.table("caregiver_relations")
+        .select("id")
+        .eq("patient_user_id", profile["user_id"])
+        .eq("status", "pending")
+        .execute()
+    )
+    for row in pending.data or []:
+        supabase.table("caregiver_relations").delete().eq("id", row["id"]).execute()
+
+    is_owner = profile["user_id"] == str(user_id)
+    is_placeholder = profile.get("profile_type") in {"assisted", "dependent"}
+    if is_owner and is_placeholder:
+        supabase.table("profiles").delete().eq("id", str(profile_id)).execute()

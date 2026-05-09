@@ -1,7 +1,6 @@
 import logging
 from uuid import UUID
 
-from fastapi import HTTPException, status
 from supabase import Client
 
 logger = logging.getLogger("pharmapp")
@@ -307,11 +306,19 @@ async def get_bootstrap_data(supabase: Client, user_id: UUID) -> dict:
         recent_measurements = []
 
     # ---------------------------------------------------------------
+    # 12. Subscription state (Apple StoreKit-derived entitlement)
+    # ---------------------------------------------------------------
+    from app.services.store_service import get_subscription_state
+
+    subscription = await get_subscription_state(supabase, user_id)
+
+    # ---------------------------------------------------------------
     # Assemble response
     # ---------------------------------------------------------------
     return {
         "profiles": profiles,
         "settings": settings,
+        "subscription": subscription,
         "doctors": doctors,
         "medications": medications_with_details,
         "dose_events": dose_events_r.data,
