@@ -60,7 +60,11 @@ async def create_prescription(
     # Convert doctor_id to string if present
     if payload.get("doctor_id"):
         payload["doctor_id"] = str(payload["doctor_id"])
-    result = supabase.table("prescriptions").insert(payload).execute()
+    if payload.get("id"):
+        payload["id"] = str(payload["id"]).lower()
+        result = supabase.table("prescriptions").upsert(payload, on_conflict="id").execute()
+    else:
+        result = supabase.table("prescriptions").insert(payload).execute()
     return result.data[0]
 
 

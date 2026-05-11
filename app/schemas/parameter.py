@@ -41,9 +41,12 @@ class ParameterDTO(PharmaBaseModel):
 
 
 class ParameterCreateRequest(PharmaBaseModel):
-    """Create a CUSTOM parameter. The server allocates the UUID and
-    derives `parameter_key='custom:<uuid>'`."""
+    """Create a CUSTOM parameter. Client may provide `id` to enable
+    idempotent retry — `parameter_key` derived from that uuid so iOS
+    can pre-emptively reference it in routine measurement steps. When
+    `id` absent server allocates one."""
 
+    id: UUID | None = None
     profile_id: UUID
     name: str = Field(min_length=1, max_length=40)
     unit: str | None = Field(None, max_length=20)

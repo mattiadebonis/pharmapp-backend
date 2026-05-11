@@ -16,10 +16,17 @@ async def list_doctors(supabase: Client, user_id: UUID) -> list[dict]:
 
 
 async def create_doctor(supabase: Client, user_id: UUID, data) -> dict:
-    """Create a new doctor for the user."""
+    """Create a new doctor. Client-provided `id` enables idempotent
+    offline-queue retries; child records (medications.prescribing_doctor_id,
+    prescriptions.doctor_id) referencing the local UUID need this to
+    survive the round trip."""
     payload = data.model_dump(exclude_none=True, mode="json")
     payload["user_id"] = str(user_id)
-    result = supabase.table("doctors").insert(payload).execute()
+    if payload.get("id"):
+        payload["id"] = str(payload["id"]).lower()
+        result = supabase.table("doctors").upsert(payload, on_conflict="id").execute()
+    else:
+        result = supabase.table("doctors").insert(payload).execute()
     return result.data[0]
 
 

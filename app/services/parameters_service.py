@@ -164,8 +164,10 @@ async def create_custom_parameter(
     supabase: Client, user_id: UUID, data: ParameterCreateRequest
 ) -> dict[str, Any]:
     await assert_profile_owned(supabase, user_id, data.profile_id)
-    parameter_key = f"custom:{_uuid.uuid4()}"
+    param_id = str(data.id).lower() if data.id else str(_uuid.uuid4())
+    parameter_key = f"custom:{param_id}"
     payload = {
+        "id": param_id,
         "profile_id": str(data.profile_id),
         "parameter_key": parameter_key,
         "name": data.name,
@@ -174,7 +176,10 @@ async def create_custom_parameter(
         "labels": data.labels,
         "decimals": data.decimals,
     }
-    res = supabase.table("parameters").insert(payload).execute()
+    if data.id:
+        res = supabase.table("parameters").upsert(payload, on_conflict="id").execute()
+    else:
+        res = supabase.table("parameters").insert(payload).execute()
     await log_activity(
         supabase,
         user_id,

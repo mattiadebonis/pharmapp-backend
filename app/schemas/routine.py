@@ -38,6 +38,7 @@ _TIME_PATTERN = r"^\d{2}:\d{2}$"
 
 
 class RoutineCreateRequest(PharmaBaseModel):
+    id: UUID | None = None
     profile_id: UUID
     name: str = Field(min_length=1, max_length=80)
     rrule: str | None = None

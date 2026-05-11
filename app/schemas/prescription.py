@@ -35,6 +35,7 @@ class PrescriptionDTO(PharmaBaseModel):
 # Create request
 # ---------------------------------------------------------------------------
 class PrescriptionCreateRequest(PharmaBaseModel):
+    id: UUID | None = None
     medication_id: UUID
     doctor_id: UUID | None = None
     prescription_type: PrescriptionType | None = None

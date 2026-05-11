@@ -34,6 +34,7 @@ class ProfileDTO(PharmaBaseModel):
 # Create request – client-supplied fields only
 # ---------------------------------------------------------------------------
 class ProfileCreateRequest(PharmaBaseModel):
+    id: UUID | None = None
     profile_type: ProfileType
     display_name: str
     birth_date: date | None = None

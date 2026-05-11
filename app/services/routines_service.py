@@ -174,9 +174,18 @@ async def create_routine_with_steps(
         exclude={"steps"}, exclude_none=True
     )
     routine_payload["profile_id"] = str(data.profile_id)
-    routine_row = (
-        supabase.table("routines").insert(routine_payload).execute().data[0]
-    )
+    if routine_payload.get("id"):
+        routine_payload["id"] = str(routine_payload["id"]).lower()
+        routine_row = (
+            supabase.table("routines")
+            .upsert(routine_payload, on_conflict="id")
+            .execute()
+            .data[0]
+        )
+    else:
+        routine_row = (
+            supabase.table("routines").insert(routine_payload).execute().data[0]
+        )
     routine_id = routine_row["id"]
 
     inserted_steps: list[dict] = []

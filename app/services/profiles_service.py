@@ -17,10 +17,17 @@ async def list_profiles(supabase: Client, user_id: UUID) -> list[dict]:
 
 
 async def create_profile(supabase: Client, user_id: UUID, data) -> dict:
-    """Create a new profile for the user."""
+    """Create a new profile for the user. Client-provided `id` enables
+    idempotent offline-queue retries — without it, backend assigns a
+    new UUID and child records (medications, dose_events) referencing
+    the local UUID would FK-fail."""
     payload = data.model_dump(exclude_none=True, mode="json")
     payload["user_id"] = str(user_id)
-    result = supabase.table("profiles").insert(payload).execute()
+    if payload.get("id"):
+        payload["id"] = str(payload["id"]).lower()
+        result = supabase.table("profiles").upsert(payload, on_conflict="id").execute()
+    else:
+        result = supabase.table("profiles").insert(payload).execute()
     return result.data[0]
 
 

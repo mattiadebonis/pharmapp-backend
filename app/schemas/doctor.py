@@ -32,6 +32,7 @@ class DoctorDTO(PharmaBaseModel):
 # Create request
 # ---------------------------------------------------------------------------
 class DoctorCreateRequest(PharmaBaseModel):
+    id: UUID | None = None
     name: str
     surname: str | None = None
     specialization: str | None = None
