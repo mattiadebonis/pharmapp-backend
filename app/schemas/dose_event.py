@@ -38,6 +38,7 @@ class DoseEventDTO(PharmaBaseModel):
 # Create request
 # ---------------------------------------------------------------------------
 class DoseEventCreateRequest(PharmaBaseModel):
+    id: UUID | None = None
     medication_id: UUID
     dosing_schedule_id: UUID | None = None
     profile_id: UUID

@@ -121,15 +121,20 @@ async def create_dose_event(supabase: Client, user_id: UUID, data) -> dict:
             detail={"error": {"code": "forbidden", "message": "Profile does not belong to user"}},
         )
     # Convert UUID fields to strings
-    for uuid_field in ("profile_id", "medication_id", "dosing_schedule_id"):
+    for uuid_field in ("id", "profile_id", "medication_id", "dosing_schedule_id"):
         if payload.get(uuid_field):
-            payload[uuid_field] = str(payload[uuid_field])
+            payload[uuid_field] = str(payload[uuid_field]).lower()
     # Convert datetime fields to ISO strings
     for dt_field in ("due_at", "taken_at", "auto_registered_at", "user_corrected_at"):
         if dt_field in payload and hasattr(payload[dt_field], "isoformat"):
             payload[dt_field] = payload[dt_field].isoformat()
     payload["actor_user_id"] = str(user_id)
-    result = supabase.table("dose_events").insert(payload).execute()
+    # Idempotent upsert when client provides id (offline retry, dose confirm
+    # replay). Without id, fall back to plain insert.
+    if payload.get("id"):
+        result = supabase.table("dose_events").upsert(payload, on_conflict="id").execute()
+    else:
+        result = supabase.table("dose_events").insert(payload).execute()
     return result.data[0]
 
 
