@@ -216,17 +216,25 @@ async def get_subscription_state(
 ) -> dict[str, Any]:
     """Return the most recent persisted subscription row, or a synthetic
     free-tier row when the user has never validated a transaction."""
-    result = supabase.table("subscriptions").select("*").eq("user_id", str(user_id)).limit(1).execute()
+    free_tier = {
+        "tier": "free",
+        "is_trial_active": False,
+        "expires_at": None,
+        "last_validated_at": None,
+        "original_transaction_id": None,
+        "product_id": None,
+        "environment": None,
+    }
+    try:
+        result = supabase.table("subscriptions").select("*").eq("user_id", str(user_id)).limit(1).execute()
+    except Exception as exc:
+        # Migration 027 (subscriptions) not yet applied to this Supabase
+        # project. Don't block bootstrap — return synthetic free tier so the
+        # iOS client can still function. Apply migrations/027_*.sql to fix.
+        logger.warning("subscriptions table unavailable, returning free tier: %s", exc)
+        return free_tier
     if not result.data:
-        return {
-            "tier": "free",
-            "is_trial_active": False,
-            "expires_at": None,
-            "last_validated_at": None,
-            "original_transaction_id": None,
-            "product_id": None,
-            "environment": None,
-        }
+        return free_tier
     row = result.data[0]
     expires_at = row.get("expires_at")
     # Demote to free if the persisted state is past its expiry. The webhook

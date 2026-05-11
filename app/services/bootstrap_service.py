@@ -31,6 +31,24 @@ async def get_bootstrap_data(supabase: Client, user_id: UUID) -> dict:
         .execute()
     )
     profiles = profiles_r.data
+
+    # Ensure every user has at least one "own" profile so the iOS client
+    # can immediately attach medications/dose events. Without this, a fresh
+    # anonymous user lands on an empty bootstrap and saveMedicationDraft
+    # silently drops the payload because no profile exists.
+    if not profiles:
+        created = (
+            supabase.table("profiles")
+            .insert({
+                "user_id": uid,
+                "display_name": "Io",
+                "profile_type": "own",
+                "color_hex": "#2B7DD4",
+            })
+            .execute()
+        )
+        profiles = created.data
+
     profile_ids = [p["id"] for p in profiles]
 
     # ---------------------------------------------------------------
