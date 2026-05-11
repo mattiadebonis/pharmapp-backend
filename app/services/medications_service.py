@@ -86,18 +86,31 @@ async def create_medication(supabase: Client, user_id: UUID, data) -> dict:
     payload["profile_id"] = str(profile_id)
     if payload.get("prescribing_doctor_id"):
         payload["prescribing_doctor_id"] = str(payload["prescribing_doctor_id"])
+    if payload.get("id"):
+        payload["id"] = str(payload["id"]).lower()
     # Extract optional embedded schedules — must be inserted after the
     # medication so we can fill medication_id on each row.
     embedded_schedules = payload.pop("schedules", None) or []
-    result = supabase.table("medications").insert(payload).execute()
+    # Upsert when client provides id (offline retry, idempotent confirm
+    # replay). Without id, plain insert as before.
+    if payload.get("id"):
+        result = supabase.table("medications").upsert(payload, on_conflict="id").execute()
+    else:
+        result = supabase.table("medications").insert(payload).execute()
     medication = result.data[0]
     if embedded_schedules:
         med_id = medication["id"]
         rows = []
         for sched in embedded_schedules:
             sched["medication_id"] = med_id
+            if sched.get("id"):
+                sched["id"] = str(sched["id"]).lower()
             rows.append(sched)
-        supabase.table("dosing_schedules").insert(rows).execute()
+        # Upsert each schedule when id present, otherwise insert
+        if any(r.get("id") for r in rows):
+            supabase.table("dosing_schedules").upsert(rows, on_conflict="id").execute()
+        else:
+            supabase.table("dosing_schedules").insert(rows).execute()
     return medication
 
 

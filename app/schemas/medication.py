@@ -15,6 +15,7 @@ from app.schemas.supply import SupplyDTO
 # from the freshly-created medication).
 # ---------------------------------------------------------------------------
 class EmbeddedScheduleCreate(PharmaBaseModel):
+    id: UUID | None = None
     schedule_type: Literal["scheduled", "as_needed", "cycle", "tapering"]
     times: list[dict[str, Any]] | None = None
     pills_per_dose: float | None = None
@@ -81,6 +82,7 @@ class MedicationDTO(PharmaBaseModel):
 # Create request
 # ---------------------------------------------------------------------------
 class MedicationCreateRequest(PharmaBaseModel):
+    id: UUID | None = None
     profile_id: UUID
     catalog_product_key: str | None = None
     catalog_country: str | None = None

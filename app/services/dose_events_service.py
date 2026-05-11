@@ -131,10 +131,23 @@ async def create_dose_event(supabase: Client, user_id: UUID, data) -> dict:
     payload["actor_user_id"] = str(user_id)
     # Idempotent upsert when client provides id (offline retry, dose confirm
     # replay). Without id, fall back to plain insert.
-    if payload.get("id"):
-        result = supabase.table("dose_events").upsert(payload, on_conflict="id").execute()
-    else:
-        result = supabase.table("dose_events").insert(payload).execute()
+    try:
+        if payload.get("id"):
+            result = supabase.table("dose_events").upsert(payload, on_conflict="id").execute()
+        else:
+            result = supabase.table("dose_events").insert(payload).execute()
+    except Exception as exc:
+        # FK violation = client referenced medication/profile that
+        # backend doesn't know yet (medication POST not synced, race, or
+        # orphaned offline queue). Return 409 with a clear flag so iOS
+        # can drain the bad mutation instead of retrying forever (500).
+        message = str(exc)
+        if "foreign key" in message.lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"error": {"code": "foreign_key_violation", "message": message}},
+            )
+        raise
     return result.data[0]
 
 
