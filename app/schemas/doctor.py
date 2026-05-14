@@ -14,15 +14,20 @@ class DoctorDTO(PharmaBaseModel):
     name: str
     surname: str | None = None
     specialization: str | None = None
+    study: str | None = None
     email: str | None = None
     phone: str | None = None
+    whatsapp_phone: str | None = None
     address: str | None = None
     schedule_json: dict[str, Any] | None = None
+    office_hours: str | None = None
+    call_preferences: str | None = None
     secretary_name: str | None = None
     secretary_email: str | None = None
     secretary_phone: str | None = None
     secretary_schedule_json: dict[str, Any] | None = None
     prescription_message_template: str | None = None
+    whatsapp_message_template: str | None = None
     profile_ids: list[UUID] = []
     created_at: datetime
     updated_at: datetime
@@ -36,15 +41,20 @@ class DoctorCreateRequest(PharmaBaseModel):
     name: str
     surname: str | None = None
     specialization: str | None = None
+    study: str | None = None
     email: str | None = None
     phone: str | None = None
+    whatsapp_phone: str | None = None
     address: str | None = None
     schedule_json: dict[str, Any] | None = None
+    office_hours: str | None = None
+    call_preferences: str | None = None
     secretary_name: str | None = None
     secretary_email: str | None = None
     secretary_phone: str | None = None
     secretary_schedule_json: dict[str, Any] | None = None
     prescription_message_template: str | None = None
+    whatsapp_message_template: str | None = None
     profile_ids: list[UUID] = []
 
 
@@ -55,13 +65,18 @@ class DoctorUpdateRequest(PharmaBaseModel):
     name: str | None = None
     surname: str | None = None
     specialization: str | None = None
+    study: str | None = None
     email: str | None = None
     phone: str | None = None
+    whatsapp_phone: str | None = None
     address: str | None = None
     schedule_json: dict[str, Any] | None = None
+    office_hours: str | None = None
+    call_preferences: str | None = None
     secretary_name: str | None = None
     secretary_email: str | None = None
     secretary_phone: str | None = None
     secretary_schedule_json: dict[str, Any] | None = None
     prescription_message_template: str | None = None
+    whatsapp_message_template: str | None = None
     profile_ids: list[UUID] = []
