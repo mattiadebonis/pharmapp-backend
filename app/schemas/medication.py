@@ -10,6 +10,20 @@ from app.schemas.supply import SupplyDTO
 
 
 # ---------------------------------------------------------------------------
+# Inline supply for bulk medication+supply creation. Specchio di
+# SupplyCreateRequest senza medication_id (filled server-side dopo aver
+# creato la medication).
+# ---------------------------------------------------------------------------
+class EmbeddedSupplyCreate(PharmaBaseModel):
+    pills_at_purchase: float | None = None
+    current_pills: float | None = None
+    purchase_date: "date | None" = None
+    refill_threshold_days: int | None = None
+    package_units: int | None = None
+    package_label: str | None = None
+
+
+# ---------------------------------------------------------------------------
 # Inline schedule for bulk medication+schedule creation. Mirrors
 # DosingScheduleCreateRequest minus the medication_id (filled server-side
 # from the freshly-created medication).
@@ -107,6 +121,11 @@ class MedicationCreateRequest(PharmaBaseModel):
     # also inserts each schedule with the new medication_id atomically.
     # Lets the iOS client persist a med + its dosing in a single round-trip.
     schedules: list[EmbeddedScheduleCreate] | None = None
+    # Optional embedded supply — same pattern: il client compila scorte
+    # nel wizard, il backend crea anche la riga `supplies` linkata.
+    # Senza questo, il bootstrap risponderebbe con supply=null al
+    # prossimo refresh e iOS mostrerebbe "scorte non gestite".
+    supply: EmbeddedSupplyCreate | None = None
 
 
 # ---------------------------------------------------------------------------

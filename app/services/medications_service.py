@@ -91,6 +91,11 @@ async def create_medication(supabase: Client, user_id: UUID, data) -> dict:
     # Extract optional embedded schedules — must be inserted after the
     # medication so we can fill medication_id on each row.
     embedded_schedules = payload.pop("schedules", None) or []
+    # Extract optional embedded supply — stesso pattern degli schedules.
+    # Senza questo l'iOS wizard creava la riga `medications` ma mai
+    # quella `supplies` → al prossimo bootstrap supply=null → UI mostra
+    # "scorte non gestite". Vedi commit fix.
+    embedded_supply = payload.pop("supply", None)
     # Upsert when client provides id (offline retry, idempotent confirm
     # replay). Without id, plain insert as before.
     if payload.get("id"):
@@ -98,8 +103,8 @@ async def create_medication(supabase: Client, user_id: UUID, data) -> dict:
     else:
         result = supabase.table("medications").insert(payload).execute()
     medication = result.data[0]
+    med_id = medication["id"]
     if embedded_schedules:
-        med_id = medication["id"]
         rows = []
         for sched in embedded_schedules:
             sched["medication_id"] = med_id
@@ -111,6 +116,13 @@ async def create_medication(supabase: Client, user_id: UUID, data) -> dict:
             supabase.table("dosing_schedules").upsert(rows, on_conflict="id").execute()
         else:
             supabase.table("dosing_schedules").insert(rows).execute()
+    if embedded_supply:
+        embedded_supply["medication_id"] = med_id
+        # Upsert su medication_id così se la riga esiste già (replay
+        # offline) viene aggiornata invece di duplicarsi.
+        supabase.table("supplies").upsert(
+            embedded_supply, on_conflict="medication_id"
+        ).execute()
     return medication
 
 
