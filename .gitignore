@@ -16,3 +16,4 @@ env/
 htmlcov/
 .coverage
 *.sqlite3
+.claude/

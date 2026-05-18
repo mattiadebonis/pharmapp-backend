@@ -1,8 +1,11 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from app.schemas.base import PharmaBaseModel
+
+
+CommunicationChannel = Literal["telefono", "whatsapp", "email"]
 
 
 # ---------------------------------------------------------------------------
@@ -28,6 +31,7 @@ class DoctorDTO(PharmaBaseModel):
     secretary_schedule_json: dict[str, Any] | None = None
     prescription_message_template: str | None = None
     whatsapp_message_template: str | None = None
+    preferenza_canale: CommunicationChannel | None = None
     profile_ids: list[UUID] = []
     created_at: datetime
     updated_at: datetime
@@ -55,6 +59,7 @@ class DoctorCreateRequest(PharmaBaseModel):
     secretary_schedule_json: dict[str, Any] | None = None
     prescription_message_template: str | None = None
     whatsapp_message_template: str | None = None
+    preferenza_canale: CommunicationChannel | None = None
     profile_ids: list[UUID] = []
 
 
@@ -79,4 +84,5 @@ class DoctorUpdateRequest(PharmaBaseModel):
     secretary_schedule_json: dict[str, Any] | None = None
     prescription_message_template: str | None = None
     whatsapp_message_template: str | None = None
+    preferenza_canale: CommunicationChannel | None = None
     profile_ids: list[UUID] = []

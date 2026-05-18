@@ -74,6 +74,7 @@ class MedicationDTO(PharmaBaseModel):
     prescribing_doctor_id: UUID | None = None
     managed_by_routine_id: UUID | None = None
     injection_sites: list[InjectionSiteDTO] = []
+    anticipo_reminder: int | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -101,6 +102,7 @@ class MedicationCreateRequest(PharmaBaseModel):
     catalog_snapshot: dict[str, Any] | None = None
     prescribing_doctor_id: UUID | None = None
     injection_sites: list[InjectionSiteDTO] | None = None
+    anticipo_reminder: int | None = None
     # Optional embedded schedules — when present, the create endpoint
     # also inserts each schedule with the new medication_id atomically.
     # Lets the iOS client persist a med + its dosing in a single round-trip.
@@ -129,6 +131,7 @@ class MedicationUpdateRequest(PharmaBaseModel):
     catalog_snapshot: dict[str, Any] | None = None
     prescribing_doctor_id: UUID | None = None
     injection_sites: list[InjectionSiteDTO] | None = None
+    anticipo_reminder: int | None = None
 
 
 # ---------------------------------------------------------------------------
