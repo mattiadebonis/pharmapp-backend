@@ -215,6 +215,68 @@ class TestCombinations:
         assert "160" in p.strength_text
         assert "4,5" in p.strength_text or "4.5" in p.strength_text
 
+    def test_briladona_trifase_contraccettivo(self):
+        """Briladona AIC 049473010: contraccettivo trifasico levonorgestrel/
+        etinilestradiolo. La descrizione AIFA è
+        "0,180 MG/0,035 MG + 0,215 MG/0,035 MG + 0,250 MG/0,035 MG …".
+        Bug pre-fix: il continuation regex non gestiva il denominatore
+        numerico, perdeva l'ultima "/0,035 MG".
+        """
+        p = parse_denominazione_package(
+            "0,180 MG/0,035 MG + 0,215 MG/0,035 MG + 0,250 MG/0,035 MG "
+            "COMPRESSE RIVESTITE CON FILM- 21 COMPRESSE DA 0,180 MG/0,035 MG…"
+        )
+        # Tutte e 3 le coppie devono apparire (almeno i numeratori)
+        assert "0,180" in p.strength_text
+        assert "0,215" in p.strength_text
+        assert "0,250" in p.strength_text
+        # Il denominatore deve apparire almeno una volta nella continuation
+        assert "0,035" in p.strength_text
+        # Boundary cut: non deve esserci "COMPRESSE" nello strength_text
+        assert "COMPRESS" not in p.strength_text.upper()
+        # Package info corretta
+        assert p.unit_count == 21
+        assert p.strength_value == 0.180
+
+    def test_naos_combo_denom_ml(self):
+        """NAOS soluzione da nebulizzare 1,875 MG/0,5 ML + 0,375 MG/0,5 ML.
+        Continuation con denominatore in ML (non MG).
+        """
+        p = parse_denominazione_package(
+            "1,875 mg/0,5 ml + 0,375 mg/0,5 ml soluzione da nebulizzare- 30 CONTENITORI MONODOSE DA 0,5 ML"
+        )
+        assert "1,875" in p.strength_text
+        assert "0,375" in p.strength_text
+        # Almeno un /0,5 ML deve restare
+        assert "0,5 ML" in p.strength_text.upper() or "/0,5" in p.strength_text
+
+    def test_vicks_medinait_triple_combo(self):
+        """Combo tre-in-uno con stesso denominatore /ML."""
+        p = parse_denominazione_package(
+            "0,5 mg/ml +  0,25  mg/ml  +  20  mg/ml sciroppo, flacone in vetro da 180 ml"
+        )
+        # Le 3 dosi devono apparire tutte
+        assert "0,5" in p.strength_text
+        assert "0,25" in p.strength_text
+        assert "20" in p.strength_text
+
+    def test_kit_inizio_trattamento_boundary_cut(self):
+        """Brilique-like: "10 MG + 20 MG + 30 MG COMPRESSE - 4 COMPRESSE DA 10 MG + 4 COMPRESSE DA 20 MG…".
+        Pre-fix: strength_text inglobava "COMPRESSE…" perché dosage_part
+        conteneva il container. Boundary cut deve troncare prima.
+        """
+        p = parse_denominazione_package(
+            "10 MG + 20 MG + 30 MG COMPRESSE RIVESTITE CON FILM- 4 COMPRESSE DA 10 MG + 4 COMPRESSE DA 20 MG + 19 COMPRESSE DA 30 MG"
+        )
+        # Le 3 dosi base sono catturate
+        assert "10" in p.strength_text
+        assert "20" in p.strength_text
+        assert "30" in p.strength_text
+        # Boundary cut: niente "COMPRESSE" nello strength_text
+        assert "COMPRESS" not in p.strength_text.upper()
+        # Lunghezza ragionevole (no descrizione completa)
+        assert len(p.strength_text) < 35, f"Troppo lungo: {p.strength_text!r}"
+
 
 # ─── Casi limite e robustezza ────────────────────────────────────────────────
 

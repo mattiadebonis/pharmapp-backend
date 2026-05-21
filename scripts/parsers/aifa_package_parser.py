@@ -137,9 +137,17 @@ _STRENGTH_RE = re.compile(
 )
 
 
-# Continuation pattern per combinazioni (paracetamolo+codeina, ecc.).
+# Continuation pattern per combinazioni (paracetamolo+codeina, trifasici, ecc.).
 # Cattura "+ X UNIT" o "/ X UNIT" *dopo* una strength già matchata.
 # Usato per costruire `strength_text` con tutte le dosi visibili.
+#
+# Gruppi:
+#   1: separatore (`+` o `/`)
+#   2: numero
+#   3: unità primaria
+#   4,5: denominatore numerico opzionale (es. "/0,035 MG" nei trifasici
+#        contraccettivi tipo Briladona, "/0,5 ML" in Vicks Medinait, ecc.)
+#   6: denominatore "per X" opzionale (es. "/EROGAZIONE")
 _STRENGTH_CONTINUATION_RE = re.compile(
     r"\s*([+/])\s*"
     r"(\d+(?:[.,]\d+)?)"
@@ -149,7 +157,24 @@ _STRENGTH_CONTINUATION_RE = re.compile(
     r"MG/ML|MCG/ML|NG/ML|UI/ML|MEQ/ML|MG/L|MCG/L|"
     r"MG|MCG|NG|PG|MEQ|G|ML|UI|U\.I\.|IU|MMOL|U"
     r")"
+    # Denominatore numerico (es. "/0,035 MG") — necessario per i
+    # contraccettivi trifasici (Briladona TRIFASE: "+ 0,215 MG/0,035 MG"),
+    # nebulizzatori multidose (NAOS: "+ 0,375 MG/0,5 ML") ecc.
+    r"(?:\s*/\s*(\d+(?:[.,]\d+)?)\s*(ML|L|G|MG|H|MIN|MCG))?"
     r"(?:\s*/\s*(" + _PER_X_DENOMINATOR + r"))?",
+    re.IGNORECASE,
+)
+
+
+# Container boundary: usato in _extract_strength per troncare lo
+# strength_text al primo container token. Protegge da dosage_part
+# che inglobano "COMPRESSE", "CAPSULE" o altre parole-contenitore
+# tipiche dei kit di inizio trattamento (es. Brilique-like:
+# "10 MG + 20 MG + 30 MG COMPRESSE - 4 COMPRESSE DA…").
+_CONTAINER_BOUNDARY_RE = re.compile(
+    r"\s+(?:COMPRESS|CAPSUL|BUSTIN|FIAL|GRANULAT|POLVER|SOLUZ|SOSPENS|"
+    r"SCIROPP|UNGUENT|CREMA|GEL|SPRAY|CEROTT|FLACONI?|SIRING|OVUL|SUPPOSTA|"
+    r"COLLIRIO|CONTENITOR|STICK|BLISTER)\w*\b",
     re.IGNORECASE,
 )
 
@@ -302,23 +327,37 @@ def _extract_strength(dosage_part: str) -> tuple[str, float | None, str]:
         per_x=per_x,
     )
 
-    # Continuazioni per combinazioni: "+ 30 MG" o "/ 125 MG"
-    # Ne accettiamo al più 3 per evitare runaway su descrizioni patologiche.
+    # Continuazioni per combinazioni: "+ 30 MG", "/ 125 MG", o trifasici
+    # come Briladona "+ 0,215 MG/0,035 MG". Ne accettiamo fino a 4 per
+    # coprire combo 4-in-1 (Stribild: 150/150/200/245).
     text_parts: list[str] = [primary_text]
     rest = dosage_part[primary.end():]
-    for _ in range(3):
+    for _ in range(4):
         cont = _STRENGTH_CONTINUATION_RE.match(rest)
         if not cont:
             break
         sep = cont.group(1)
         cont_num = cont.group(2)
         cont_unit = cont.group(3).upper()
-        cont_per_x = cont.group(4)
-        cont_frag = _format_strength_fragment(cont_num, cont_unit, per_x=cont_per_x)
+        # Nuovi gruppi (post-fix Briladona): denom numerico nella continuation
+        cont_denom_val = cont.group(4)
+        cont_denom_unit = cont.group(5)
+        cont_per_x = cont.group(6)
+        cont_frag = _format_strength_fragment(
+            cont_num, cont_unit,
+            denom_val=cont_denom_val,
+            denom_unit=cont_denom_unit,
+            per_x=cont_per_x,
+        )
         text_parts.append(f"{sep} {cont_frag}")
         rest = rest[cont.end():]
 
     canonical_text = " ".join(text_parts)
+    # Boundary cut: tronca prima del primo container token per proteggere
+    # da kit di inizio trattamento (Brilique-like) dove il dosage_part
+    # ingloba "COMPRESSE…" o simili. Lascia intatti i casi normali in cui
+    # il primary regex si è fermato ben prima del container.
+    canonical_text = _CONTAINER_BOUNDARY_RE.split(canonical_text, maxsplit=1)[0].rstrip(" ,")
     return canonical_text, primary_value, compound_unit
 
 

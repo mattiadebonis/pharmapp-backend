@@ -167,6 +167,21 @@ def parse_csv(file_path: Path, stats: Stats) -> tuple[list[dict], dict[str, dict
                     print(f"  WARN: row {row_num}: parse error for '{descrizione}': {e}")
                 parsed = parse_denominazione_package(None)
 
+            # Override per omeopatici: la dose "ponderale" estratta dal parser
+            # (es. "800 MG" dal peso capsula vuota) non è la dose terapeutica.
+            # La vera dose omeopatica è la potenza hahnemanniana (6K, 12K, MK)
+            # non parsabile come MG. Coerente con la UPDATE one-shot della
+            # migration 036.
+            is_homeopathic = (tipo_procedura == "Omeopatico")
+            if is_homeopathic:
+                strength_value = None
+                strength_unit = None
+                strength_text = None
+            else:
+                strength_value = parsed.strength_value
+                strength_unit = parsed.strength_unit or None
+                strength_text = parsed.strength_text or None
+
             # Build package row
             pkg = {
                 "codice_aic": codice_aic,
@@ -184,9 +199,9 @@ def parse_csv(file_path: Path, stats: Stats) -> tuple[list[dict], dict[str, dict
                 "requires_prescription": requires_prescription,
                 "unit_count": parsed.unit_count,
                 "package_type": parsed.package_type or None,
-                "strength_value": parsed.strength_value,
-                "strength_unit": parsed.strength_unit or None,
-                "strength_text": parsed.strength_text or None,
+                "strength_value": strength_value,
+                "strength_unit": strength_unit,
+                "strength_text": strength_text,
                 "volume_value": parsed.volume_value,
                 "volume_unit": parsed.volume_unit or None,
                 "intake_method": classify_intake_method(forma),
@@ -408,6 +423,50 @@ def run_import(
         #   SELECT refresh_catalog_variants();
         print(f"  WARN: refresh varianti fallito ({e!r}). Rilancia manualmente.")
 
+    # 5. Refresh view materializzata catalog_it_packages_audit (migration 036)
+    # Audit di qualità del parsing: 1 riga per package con quality_code
+    # categorico. Consente di vedere subito dopo l'import quanti packages
+    # hanno parsing OK e quanti restano bug. Refresh CONCURRENTLY.
+    print("\nRefresh view materializzata catalog_it_packages_audit...")
+    t5 = time.time()
+    try:
+        supabase.rpc("refresh_catalog_audit", {}).execute()
+        print(f"  Audit refreshato in {time.time() - t5:.1f}s")
+    except Exception as e:
+        # Non bloccante: il REFRESH MATERIALIZED VIEW CONCURRENTLY su
+        # 151k righe può superare il timeout PostgREST di default (30s).
+        # In quel caso può essere rieseguito da Supabase SQL editor:
+        #   REFRESH MATERIALIZED VIEW CONCURRENTLY catalog_it_packages_audit;
+        # oppure (più veloce): SELECT refresh_catalog_audit();
+        print(f"  WARN: refresh audit fallito ({e!r}). Rilancia manualmente.")
+
+    # 6. Report di qualità opzionale (--with-audit-report)
+    if globals().get("_with_audit_report"):
+        print("\nReport audit qualità parsing:")
+        try:
+            report = supabase.rpc("audit_get_report", {}).execute().data
+            if report:
+                qc = report.get("quality_code_distribution", {})
+                v13 = report.get("v13", {})
+                rules = report.get("rule_counts", {})
+                total = report.get("total_packages", 0)
+                print(f"  Packages totali (pubblici autorizzati): {total:,}")
+                print("  Distribuzione qualità:")
+                for k in sorted(qc, key=lambda x: -qc[x]):
+                    pct = round(100.0 * qc[k] / total, 2) if total else 0.0
+                    print(f"    {k:24s}: {qc[k]:>8,} ({pct:>5.2f}%)")
+                print(f"  Tasso parsing 'deve-avere-dose': {v13.get('rate_pct')}% "
+                      f"({v13.get('parsed_ok')} / {v13.get('total_eligible')}) "
+                      f"— pass: {v13.get('pass')}")
+                errors = sum(1 for k in ['V01','V03','V04','V05','V09','V11'] if rules.get(k, 0) > 0)
+                warnings = sum(1 for k in ['V02','V06','V07','V08','V10','V12'] if rules.get(k, 0) > 0)
+                print(f"  Validation rules: {errors} ERROR, {warnings} WARN")
+                for rule_id, count in sorted(rules.items()):
+                    if count > 0:
+                        print(f"    {rule_id}: {count}")
+        except Exception as e:
+            print(f"  WARN audit report fallito: {e!r}")
+
     total_elapsed = time.time() - t0
     print(f"\nImport totale completato in {total_elapsed:.1f}s")
     print(stats.summary())
@@ -437,6 +496,11 @@ def main() -> int:
         default=0,
         help="Riprendi upsert confezioni da questo indice (per riprendere import interrotti)",
     )
+    parser.add_argument(
+        "--with-audit-report",
+        action="store_true",
+        help="Stampa il report di qualità del parsing al termine dell'import (RPC audit_get_report, migration 037-039)",
+    )
     args = parser.parse_args()
 
     if not args.file.exists():
@@ -446,9 +510,13 @@ def main() -> int:
     print(f"AIFA CSV Import — file: {args.file}")
     print(
         f"  dry_run={args.dry_run}, batch_size={args.batch_size}, "
-        f"packages_only={args.packages_only}, start_offset={args.start_offset}"
+        f"packages_only={args.packages_only}, start_offset={args.start_offset}, "
+        f"with_audit_report={args.with_audit_report}"
     )
     print()
+
+    # Comunica alla run_import se mostrare il report (variabile a livello modulo)
+    globals()["_with_audit_report"] = args.with_audit_report
 
     run_import(
         args.file,

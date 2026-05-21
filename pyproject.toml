@@ -39,4 +39,6 @@ asyncio_mode = "auto"
 testpaths = ["app/tests"]
 markers = [
     "integration: tests that hit a real Supabase stack (docker-compose.test.yml)",
+    "golden: golden-set regression on top AIFA drugs (requires live Supabase)",
+    "validation: validation rules audit on full catalog (requires live Supabase)",
 ]
