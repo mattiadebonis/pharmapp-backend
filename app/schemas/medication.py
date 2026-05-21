@@ -62,6 +62,7 @@ class EmbeddedScheduleCreate(PharmaBaseModel):
 # ---------------------------------------------------------------------------
 MedicationCategory = Literal["farmaco", "otc", "integratore"]
 TrackingMode = Literal["passive", "active"]
+Criticality = Literal["none", "critical"]
 
 
 # ---------------------------------------------------------------------------
@@ -89,6 +90,13 @@ class MedicationDTO(PharmaBaseModel):
     managed_by_routine_id: UUID | None = None
     injection_sites: list[InjectionSiteDTO] = []
     anticipo_reminder: int | None = None
+    # Today v2 — flag clinico per badge "Critico" sulla card temporale.
+    # Default 'none'; 'critical' attiva badge rosso + variant scoring.
+    criticality: Criticality | None = "none"
+    # Today v2 — timestamp di sospensione decisa dal medico. Distinto da
+    # `is_paused` (pausa utente). Quando != null la dose non entra in
+    # timeline e contribuisce al banner "Sospesa dal medico · N farmaci".
+    suspended_by_doctor_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -117,6 +125,8 @@ class MedicationCreateRequest(PharmaBaseModel):
     prescribing_doctor_id: UUID | None = None
     injection_sites: list[InjectionSiteDTO] | None = None
     anticipo_reminder: int | None = None
+    criticality: Criticality | None = "none"
+    suspended_by_doctor_at: datetime | None = None
     # Optional embedded schedules — when present, the create endpoint
     # also inserts each schedule with the new medication_id atomically.
     # Lets the iOS client persist a med + its dosing in a single round-trip.
@@ -151,6 +161,8 @@ class MedicationUpdateRequest(PharmaBaseModel):
     prescribing_doctor_id: UUID | None = None
     injection_sites: list[InjectionSiteDTO] | None = None
     anticipo_reminder: int | None = None
+    criticality: Criticality | None = None
+    suspended_by_doctor_at: datetime | None = None
 
 
 # ---------------------------------------------------------------------------

@@ -26,6 +26,12 @@ class ProfileDTO(PharmaBaseModel):
     parent_user_id: UUID | None = None
     relation_label: str | None = None
     connection_status: ConnectionStatus | None = None
+    # Today v2 — timestamp di pausa terapia globale. Quando != null la
+    # Today mostra solo la card muted "In pausa dal X" + CTA "Riprendi".
+    therapy_paused_at: datetime | None = None
+    # Today v2 — "Modalità ridotta / Giornata difficile": filtra la Today
+    # ai soli farmaci con criticality='critical'.
+    critical_only_mode: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -43,6 +49,8 @@ class ProfileCreateRequest(PharmaBaseModel):
     parent_user_id: UUID | None = None
     relation_label: str | None = None
     connection_status: ConnectionStatus | None = None
+    therapy_paused_at: datetime | None = None
+    critical_only_mode: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -57,3 +65,5 @@ class ProfileUpdateRequest(PharmaBaseModel):
     parent_user_id: UUID | None = None
     relation_label: str | None = None
     connection_status: ConnectionStatus | None = None
+    therapy_paused_at: datetime | None = None
+    critical_only_mode: bool | None = None
