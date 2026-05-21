@@ -43,6 +43,13 @@ _CONTAINER_TYPES = {
     "FLACONE CONTAGOCCE", "NEBULIZZATORE", "INALATORE",
     "DISPOSITIVO", "PENNA", "PENNE", "PENNE PRERIEMPITE", "PENNA PRERIEMPITA",
     "SCIROPPO",
+    # Unità di dose discrete dispensate da un singolo contenitore fisico.
+    # Per inalatori, spray nasali, pompette il "count" clinicamente
+    # rilevante è il numero di erogazioni/dosi/puff, non il numero di
+    # flaconi/inalatori (sempre 1). Es: "FLACONE 140 EROGAZIONI" →
+    # unit_count=140 anziché 1 (più informativo per l'utente).
+    "EROGAZIONI", "EROGAZIONE", "INALAZIONI", "INALAZIONE",
+    "DOSI", "DOSE", "PUFF", "ATTUAZIONI", "ATTUAZIONE",
 }
 
 _VOLUME_UNITS = {"ML", "L", "G", "KG"}
@@ -51,13 +58,98 @@ _VOLUME_UNITS = {"ML", "L", "G", "KG"}
 # AIFA uses "- ", "– ", "-", or ">" as separators.
 _SEPARATOR_RE = re.compile(r"\s*[-–>]\s*")
 
-# Strength pattern: number (optionally /number) + unit
+
+# ─── Normalizzazione unità "per esteso" ──────────────────────────────────────
+#
+# AIFA scrive a volte le unità per esteso ("25 MICROGRAMMI COMPRESSE", "15
+# MILLIGRAMMI COMPRESSE RIVESTITE..."). Senza normalizzazione, la regex di
+# strength sotto — che riconosce solo le forme abbreviate (MCG/MG/UI...) —
+# fallisce e tutto il prodotto perde lo strength_text. Per Eutirox & le
+# levotiroxine questo significa che tutti i dosaggi della famiglia
+# collassano in una sola variante "vuota" nella UI di setup.
+#
+# Importante: l'ordine conta. "MICROGRAMMI" contiene "GRAMMI", quindi le
+# alternative col prefisso (MICRO/MILLI/NANO/PICO) devono essere applicate
+# PRIMA di "GRAMMI" semplice, altrimenti "GRAMMI" matcha al suo interno
+# e produce risultati corrotti.
+#
+# Nota sui boundary: usiamo `(?<![A-Za-z])` invece di `\b` come
+# left-boundary perché AIFA a volte scrive "25MICROGRAMMI" senza spazio
+# (es. "SALMETEROLO E FLUTICASONE 25MICROGRAMMI/125MICROGRAMMI..."). Con
+# `\b` la transizione digit→letter NON è un boundary (entrambi `\w`),
+# quindi non scatta. Il lookbehind `(?<![A-Za-z])` invece accetta sia
+# stringa-vuota che digit che separatore, ma esclude letter — così non
+# tocchiamo parole come "ANTIGRAMM" o simili.
+_UNIT_WORD_NORMALIZATIONS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"(?<![A-Za-z])MICROGRAMM(?:O|I)\b", re.IGNORECASE), "MCG"),
+    (re.compile(r"(?<![A-Za-z])MILLIGRAMM(?:O|I)\b", re.IGNORECASE), "MG"),
+    (re.compile(r"(?<![A-Za-z])NANOGRAMM(?:O|I)\b", re.IGNORECASE), "NG"),
+    (re.compile(r"(?<![A-Za-z])PICOGRAMM(?:O|I)\b", re.IGNORECASE), "PG"),
+    (re.compile(r"(?<![A-Za-z])MILLILITR(?:O|I)\b", re.IGNORECASE), "ML"),
+    (re.compile(r"(?<![A-Za-z])MILLIEQUIVALENT(?:E|I)\b", re.IGNORECASE), "MEQ"),
+    # "UNITA INTERNAZIONALI" / "UNITÀ INTERNAZIONALI" (con o senza apostrofo,
+    # con o senza accento) → UI. Il backslash su ` ` accetta unicode " ".
+    (re.compile(r"\bUNIT[AÀ]['’]?\s+INTERNAZIONAL(?:E|I)\b", re.IGNORECASE), "UI"),
+    # "GRAMMI"/"GRAMMO" puri — solo DOPO aver consumato i prefissi sopra.
+    (re.compile(r"(?<![A-Za-z])GRAMM(?:O|I)\b", re.IGNORECASE), "G"),
+)
+
+
+def _normalize_unit_words(text: str) -> str:
+    """Sostituisce le unità AIFA scritte per esteso con la forma abbreviata."""
+    for pattern, repl in _UNIT_WORD_NORMALIZATIONS:
+        text = pattern.sub(repl, text)
+    return text
+
+
+# Denominatori "per X" (rate / dose discreta) usati nei farmaci ad
+# erogazione (spray, inalatori, cerotti). Vanno parsati come parte
+# integrante dell'unità — `5 MCG/ORA` è clinicamente diverso da `5 MCG`.
+_PER_X_DENOMINATOR = (
+    r"EROGAZION[EI]|INALAZION[EI]|DOS[EI]|ATTUAZION[EI]|"
+    r"APPLICAZION[EI]|OR[AE]|MINUT[OI]|SETTIMAN[AE]|"
+    r"24H|48H|72H|H|MIN"
+)
+
+
+# Strength pattern: number + unit (con varianti composte e per-X)
+#
+# Gruppi:
+#   1: numero principale
+#   2: unità primaria (può essere composta tipo MG/ML)
+#   3,4: denominatore numerico opzionale (X MG / 5 ML)
+#   5: denominatore "per X" opzionale (X MCG / EROGAZIONE)
 _STRENGTH_RE = re.compile(
-    r"(\d+(?:[.,]\d+)?)"  # main number
+    r"(\d+(?:[.,]\d+)?)"
     r"\s*"
-    r"(%|MG/ML|MCG/ML|MG|MCG|G/L|G|ML|UI|U\.I\.|IU|MMOL)"  # unit (compound units first)
-    r"(?:\s*/\s*(\d+(?:[.,]\d+)?)\s*(ML|L|G|MG))?"  # optional denominator e.g. /5 ML
-    ,
+    r"("
+    # Unità COMPOSTE prima (longest-match: MG/ML deve essere tentato prima di MG)
+    r"%|"
+    r"MG/ML|MCG/ML|NG/ML|UI/ML|MEQ/ML|MG/L|MCG/L|"
+    # Unità singole
+    r"MG|MCG|NG|PG|MEQ|G|ML|UI|U\.I\.|IU|MMOL|U"
+    r")"
+    # Denominatore numerico: /5 ML, /2 ML
+    r"(?:\s*/\s*(\d+(?:[.,]\d+)?)\s*(ML|L|G|MG|H|MIN))?"
+    # Denominatore "per X" (mutualmente esclusivo col numerico)
+    r"(?:\s*/\s*(" + _PER_X_DENOMINATOR + r"))?",
+    re.IGNORECASE,
+)
+
+
+# Continuation pattern per combinazioni (paracetamolo+codeina, ecc.).
+# Cattura "+ X UNIT" o "/ X UNIT" *dopo* una strength già matchata.
+# Usato per costruire `strength_text` con tutte le dosi visibili.
+_STRENGTH_CONTINUATION_RE = re.compile(
+    r"\s*([+/])\s*"
+    r"(\d+(?:[.,]\d+)?)"
+    r"\s*"
+    r"("
+    r"%|"
+    r"MG/ML|MCG/ML|NG/ML|UI/ML|MEQ/ML|MG/L|MCG/L|"
+    r"MG|MCG|NG|PG|MEQ|G|ML|UI|U\.I\.|IU|MMOL|U"
+    r")"
+    r"(?:\s*/\s*(" + _PER_X_DENOMINATOR + r"))?",
     re.IGNORECASE,
 )
 
@@ -124,14 +216,110 @@ def _extract_count_before(text: str, pos: int) -> int | None:
 
 
 def _extract_volume_after(text: str, pos: int) -> tuple[float | None, str]:
-    """Extract volume (number + volume unit) after position."""
+    """Extract volume (number + volume unit) after position.
+
+    AIFA scrive il volume del contenitore con due varianti principali:
+      a) subito dopo il container: "FLACONE 30 ML"
+      b) con "DA <num> UNIT" intermedi: "TUBO IN ALLUMINIO DA 50 G"
+      c) sintetico: "FLAC.115 G"
+
+    Usiamo `re.match` per (a) e fallback a `re.search` con prefisso "DA"
+    per (b/c) — il prefisso "DA" disambigua e ci protegge dal catturare
+    numeri estranei (es. "10 BUSTINE FILTRO G 2" non deve produrre
+    volume 2 G).
+    """
     after = text[pos:].strip()
-    m = re.match(r"(?:DA?\s+)?(\d+(?:[.,]\d+)?)\s*(ML|L|G|KG)\b", after, re.IGNORECASE)
+
+    # (a) Volume immediatamente dopo il container, con o senza "DA"
+    m = re.match(r"(?:DA?\.?\s*)?(\d+(?:[.,]\d+)?)\s*(ML|L|G|KG)\b", after, re.IGNORECASE)
     if m:
         val = _parse_italian_number(m.group(1))
         unit = m.group(2).upper()
         return val, unit
+
+    # (b) "DA <num> UNIT" più avanti nella stringa (preceduto da spazio o inizio)
+    m = re.search(r"(?:^|\s)DA\s+(\d+(?:[.,]\d+)?)\s*(ML|L|G|KG)\b", after, re.IGNORECASE)
+    if m:
+        val = _parse_italian_number(m.group(1))
+        unit = m.group(2).upper()
+        return val, unit
+
     return None, ""
+
+
+def _format_strength_fragment(num_str: str, unit: str,
+                              denom_val: str | None = None,
+                              denom_unit: str | None = None,
+                              per_x: str | None = None) -> str:
+    """Formatta un frammento di strength canonicalizzato.
+
+    Esempi:
+      ("25", "MCG") → "25 MCG"
+      ("120", "MG", "5", "ML") → "120 MG/5 ML"
+      ("5", "MCG", per_x="ORA") → "5 MCG/ORA"
+    """
+    base = f"{num_str} {unit.upper()}"
+    if denom_val:
+        base = f"{base}/{denom_val} {(denom_unit or '').upper()}".rstrip()
+    elif per_x:
+        base = f"{base}/{per_x.upper()}"
+    return base
+
+
+def _extract_strength(dosage_part: str) -> tuple[str, float | None, str]:
+    """Estrae strength dalla porzione "dosage" del nome confezione.
+
+    Restituisce (canonical_text, primary_value, primary_unit_compound).
+    Gestisce:
+      - Unità composte (MG/ML, UI/ML, MCG/EROGAZIONE)
+      - Denominatori numerici (120 MG/5 ML)
+      - Denominatori "per X" (5 MCG/ORA, 50 MCG/EROGAZIONE)
+      - Combinazioni (500 MG + 30 MG, 875 MG/125 MG)
+    """
+    primary = _STRENGTH_RE.search(dosage_part)
+    if not primary:
+        return "", None, ""
+
+    num_str = primary.group(1)
+    unit = primary.group(2).upper()
+    denom_val = primary.group(3)
+    denom_unit = primary.group(4)
+    per_x = primary.group(5)
+
+    primary_value = _parse_italian_number(num_str)
+    if denom_val:
+        compound_unit = f"{unit}/{denom_val}{(denom_unit or '').upper()}"
+    elif per_x:
+        compound_unit = f"{unit}/{per_x.upper()}"
+    else:
+        compound_unit = unit
+    compound_unit = compound_unit.replace(" ", "")
+
+    primary_text = _format_strength_fragment(
+        num_str, unit,
+        denom_val=denom_val,
+        denom_unit=denom_unit,
+        per_x=per_x,
+    )
+
+    # Continuazioni per combinazioni: "+ 30 MG" o "/ 125 MG"
+    # Ne accettiamo al più 3 per evitare runaway su descrizioni patologiche.
+    text_parts: list[str] = [primary_text]
+    rest = dosage_part[primary.end():]
+    for _ in range(3):
+        cont = _STRENGTH_CONTINUATION_RE.match(rest)
+        if not cont:
+            break
+        sep = cont.group(1)
+        cont_num = cont.group(2)
+        cont_unit = cont.group(3).upper()
+        cont_per_x = cont.group(4)
+        cont_frag = _format_strength_fragment(cont_num, cont_unit, per_x=cont_per_x)
+        text_parts.append(f"{sep} {cont_frag}")
+        rest = rest[cont.end():]
+
+    canonical_text = " ".join(text_parts)
+    return canonical_text, primary_value, compound_unit
 
 
 # ---------- main parser ----------
@@ -148,6 +336,11 @@ def parse_denominazione_package(raw: str | None) -> ParsedPackage:
     # Also handle mid-string ? (like "?BAMBINI 500 MG SUPPOSTE? 20 SUPPOSTE...")
     cleaned = cleaned.replace("?", " ").strip()
     cleaned = re.sub(r"\s{2,}", " ", cleaned)
+
+    # Normalizza le unità AIFA scritte per esteso → forma abbreviata.
+    # Va fatto PRIMA di tutto il parsing successivo (split separatore,
+    # strength regex, container detection) per garantire uniformità.
+    cleaned = _normalize_unit_words(cleaned)
 
     # ── Handle quoted strings: "DOSAGE FORM" COUNT CONTAINER ──
     quote_match = re.match(r'^["\u201c](.+?)["\u201d]\s*(.*)', cleaned, re.DOTALL)
@@ -167,24 +360,22 @@ def parse_denominazione_package(raw: str | None) -> ParsedPackage:
             packaging_part = cleaned
 
     # ── Extract strength from dosage part ──
-    strength_match = _STRENGTH_RE.search(dosage_part)
-    if strength_match:
-        result.strength_value = _parse_italian_number(strength_match.group(1))
-        unit = strength_match.group(2).upper()
-        if strength_match.group(3):
-            denom_val = strength_match.group(3).strip()
-            denom_unit = strength_match.group(4).upper() if strength_match.group(4) else ""
-            unit = f"{unit}/{denom_val}{denom_unit}"
-        result.strength_unit = unit.replace(" ", "")
-
-        # Build a clean strength_text: "1000 MG" or "120 MG/5 ML"
-        num_str = strength_match.group(1)
-        if strength_match.group(3):
-            result.strength_text = f"{num_str} {strength_match.group(2).upper()}/{strength_match.group(3)} {strength_match.group(4).upper() if strength_match.group(4) else ''}".strip()
-        else:
-            result.strength_text = f"{num_str} {strength_match.group(2).upper()}"
-    else:
-        result.strength_text = ""
+    strength_text, strength_value, strength_unit = _extract_strength(dosage_part)
+    # Fallback: alcune confezioni AIFA mettono il brand prima del trattino
+    # e la dose dopo (es. "DISKUS -50 MICROGRAMMI/500 MICROGRAMMI/DOSE...").
+    # Se il primo tentativo non ha trovato nulla, riproviamo sull'intera
+    # stringa pulita — ma scartiamo match con sola unità "volumetrica"
+    # (ML/L/G/KG) perché in packaging_part queste sono SEMPRE il volume del
+    # contenitore (es. "TUBO ... DA 50 G", "SIRINGA DA 0,5 ML"), non la
+    # dose. Le dosi accettate via fallback devono avere unità di "massa
+    # farmacologica" (MG/MCG/UI/...) o composte (MG/ML).
+    if not strength_text and packaging_part and packaging_part != dosage_part:
+        fb_text, fb_value, fb_unit = _extract_strength(cleaned)
+        if fb_unit and fb_unit.upper() not in {"ML", "L", "G", "KG"}:
+            strength_text, strength_value, strength_unit = fb_text, fb_value, fb_unit
+    result.strength_text = strength_text
+    result.strength_value = strength_value
+    result.strength_unit = strength_unit
 
     # ── Extract packaging info (count + container) ──
     # First try from the packaging_part (after separator)

@@ -392,6 +392,22 @@ def run_import(
             print(f"  ingredienti: {done}/{len(ingredient_rows)}")
         print(f"  Ingredienti completati in {time.time() - t3:.1f}s")
 
+    # 4. Refresh materialized view catalog_it_variants (migration 033)
+    # La view aggrega i packages per (cod_farmaco × strength × forma).
+    # Va aggiornata dopo ogni import per restare allineata. Refresh
+    # CONCURRENTLY → nessun lock in lettura per i client (richiede
+    # l'unique index su variant_key, già creato in migration 033).
+    print("\nRefresh view materializzata catalog_it_variants...")
+    t4 = time.time()
+    try:
+        supabase.rpc("refresh_catalog_variants", {}).execute()
+        print(f"  Varianti refreshate in {time.time() - t4:.1f}s")
+    except Exception as e:
+        # Non bloccante: l'import dei packages è già committato.
+        # Il refresh può essere rieseguito manualmente con:
+        #   SELECT refresh_catalog_variants();
+        print(f"  WARN: refresh varianti fallito ({e!r}). Rilancia manualmente.")
+
     total_elapsed = time.time() - t0
     print(f"\nImport totale completato in {total_elapsed:.1f}s")
     print(stats.summary())
