@@ -37,6 +37,7 @@ from app.schemas.prescription_request import (
     PrescriptionRequestUpdateRequest,
 )
 from app.schemas.profile import (
+    ProfileAnchorDTO,
     ProfileCreateRequest,
     ProfileDTO,
     ProfileUpdateRequest,
@@ -167,6 +168,49 @@ class TestProfiles:
         req = ProfileUpdateRequest(display_name="Mario")
         assert req.display_name == "Mario"
         assert req.profile_type is None
+
+    def test_anchors_default_in_dto(self):
+        # I profili senza colonna `anchors` (DB pre-migration oppure
+        # bootstrap legacy) devono accettare il default factory: 5 anchor
+        # attivi tutti i 7 giorni.
+        now = datetime.now(timezone.utc)
+        dto = ProfileDTO(
+            id=uuid4(),
+            user_id=uuid4(),
+            profile_type="own",
+            display_name="Mattia",
+            created_at=now,
+            updated_at=now,
+        )
+        assert len(dto.anchors) == 5
+        assert [a.kind for a in dto.anchors] == [
+            "wake",
+            "breakfast",
+            "lunch",
+            "dinner",
+            "night",
+        ]
+        assert dto.anchors[0].time == "06:30"
+        assert dto.anchors[0].weekdays == [1, 2, 3, 4, 5, 6, 7]
+
+    def test_anchors_round_trip_with_partial_weekdays(self):
+        # Pattern realistico: Pranzo solo Lun-Ven (weekend libero da pranzo).
+        req = ProfileUpdateRequest(
+            anchors=[
+                ProfileAnchorDTO(
+                    kind="lunch", time="13:00", weekdays=[1, 2, 3, 4, 5]
+                ),
+                ProfileAnchorDTO(kind="wake", time="06:30"),
+            ]
+        )
+        dumped = req.model_dump(exclude_none=True, mode="json")
+        assert dumped["anchors"][0]["weekdays"] == [1, 2, 3, 4, 5]
+        # Default weekdays applicato anche quando il client lo omette.
+        assert dumped["anchors"][1]["weekdays"] == [1, 2, 3, 4, 5, 6, 7]
+
+    def test_anchors_rejects_unknown_kind(self):
+        with pytest.raises(ValidationError):
+            ProfileAnchorDTO(kind="snack", time="11:00")
 
 
 # ---------------------------------------------------------------------------
