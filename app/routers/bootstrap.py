@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from supabase import Client
 
 from app.auth.models import AuthenticatedUser
@@ -13,6 +13,16 @@ router = APIRouter(prefix="/bootstrap", tags=["Bootstrap"])
 async def bootstrap_endpoint(
     user: AuthenticatedUser = Depends(get_current_user),
     supabase: Client = Depends(get_supabase),
+    auto_create_profile: bool = Query(
+        False,
+        description=(
+            "Legacy: when true, the bootstrap creates a default 'own' "
+            "profile if the user has none. New iOS builds call "
+            "POST /v2/profiles/init explicitly and leave this false."
+        ),
+    ),
 ):
     """Fetch all user data in a single call for app startup / offline sync."""
-    return await get_bootstrap_data(supabase, user.user_id)
+    return await get_bootstrap_data(
+        supabase, user.user_id, auto_create_profile=auto_create_profile
+    )

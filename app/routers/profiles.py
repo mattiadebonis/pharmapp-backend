@@ -12,6 +12,7 @@ from app.services.profiles_service import (
     delete_profile,
     disconnect_managed_profile,
     get_profile,
+    init_own_profile,
     list_profiles,
     resend_profile_invite,
     update_profile,
@@ -35,6 +36,19 @@ async def create_profile_endpoint(
     supabase: Client = Depends(get_supabase),
 ):
     return await create_profile(supabase, user.user_id, data)
+
+
+@router.post("/init", response_model=ProfileDTO)
+async def init_own_profile_endpoint(
+    user: AuthenticatedUser = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase),
+):
+    """Idempotent: returns the user's own profile, creating it if needed.
+
+    Called by iOS once at the end of onboarding. Replaces the implicit
+    auto-create that used to live in GET /v2/bootstrap.
+    """
+    return await init_own_profile(supabase, user.user_id)
 
 
 @router.get("/{profile_id}", response_model=ProfileDTO)

@@ -48,12 +48,15 @@ EXPECTED_ENDPOINTS: list[tuple[str, str]] = [
     # Profiles
     ("GET", "/v2/profiles"),
     ("POST", "/v2/profiles"),
+    ("POST", "/v2/profiles/init"),
     ("GET", "/v2/profiles/{profile_id}"),
     ("PUT", "/v2/profiles/{profile_id}"),
     ("DELETE", "/v2/profiles/{profile_id}"),
     ("PUT", "/v2/profiles/{profile_id}/disconnect"),
     ("POST", "/v2/profiles/{profile_id}/resend-invite"),
     ("DELETE", "/v2/profiles/{profile_id}/cancel"),
+    # Debug / diagnostics
+    ("GET", "/v2/debug/whoami"),
     # Therapy data
     ("GET", "/v2/profiles/{profile_id}/therapy-data"),
     ("GET", "/v2/profiles/{profile_id}/therapy-data/report.pdf"),

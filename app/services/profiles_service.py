@@ -65,6 +65,46 @@ async def get_own_profile(supabase: Client, user_id: UUID) -> dict:
     return result.data[0]
 
 
+async def init_own_profile(
+    supabase: Client,
+    user_id: UUID,
+    display_name: str = "Io",
+    color: str = "#2B7DD4",
+) -> dict:
+    """Idempotent provisioning of the user's own profile.
+
+    The iOS onboarding flow calls this once after the user has completed
+    the setup screens. Calling it again returns the existing profile
+    instead of creating a duplicate — important because the offline
+    queue may replay the request after a transient network failure.
+
+    Replaces the implicit auto-create that ``get_bootstrap_data`` used
+    to perform: that path masked Supabase anonymous-session rotation by
+    silently spawning empty profiles, which then wiped the iOS cache.
+    """
+    existing = (
+        supabase.table("profiles")
+        .select("*")
+        .eq("user_id", str(user_id))
+        .eq("profile_type", "own")
+        .execute()
+    )
+    if existing.data:
+        return existing.data[0]
+
+    created = (
+        supabase.table("profiles")
+        .insert({
+            "user_id": str(user_id),
+            "display_name": display_name,
+            "profile_type": "own",
+            "color": color,
+        })
+        .execute()
+    )
+    return created.data[0]
+
+
 async def update_profile(supabase: Client, user_id: UUID, profile_id: UUID, data) -> dict:
     """Update a profile, verifying ownership."""
     payload = data.model_dump(exclude_none=True, mode="json")

@@ -18,6 +18,7 @@ from app.routers import (
     bootstrap,
     caregivers,
     catalog,
+    debug,
     device_tokens,
     doctors,
     dose_events,
@@ -185,6 +186,8 @@ def create_app() -> FastAPI:
     app.include_router(dsar.router, prefix="/v2")
     # Apple StoreKit transaction verification + S2S notification webhook
     app.include_router(store.router, prefix="/v2")
+    # Debug / diagnostics — /v2/debug/whoami exposes JWT sub stability
+    app.include_router(debug.router, prefix="/v2")
 
     return app
 

@@ -6,7 +6,12 @@ from supabase import Client
 logger = logging.getLogger("pharmapp")
 
 
-async def get_bootstrap_data(supabase: Client, user_id: UUID) -> dict:
+async def get_bootstrap_data(
+    supabase: Client,
+    user_id: UUID,
+    *,
+    auto_create_profile: bool = False,
+) -> dict:
     """Fetch ALL user data in a single call for app startup / sync.
 
     Returns a dict with the following keys:
@@ -18,6 +23,20 @@ async def get_bootstrap_data(supabase: Client, user_id: UUID) -> dict:
     - activity_logs (recent, last 500)
     - caregiver_relations (active)
     - device_tokens
+
+    ``auto_create_profile`` is a backward-compat escape hatch. The bootstrap
+    endpoint historically created a default "Io" profile whenever it found
+    none for the current ``user_id`` — convenient for new users but
+    destructive when Supabase rotates the anonymous session and emits a
+    fresh ``sub`` claim: the backend would silently spawn an empty profile,
+    the iOS guardrail would no longer see the remote as "logically empty",
+    and the local cache would be overwritten with that empty payload.
+
+    Updated iOS builds call ``POST /v2/profiles/init`` explicitly during
+    onboarding and always pass ``auto_create_profile=False``. Older builds
+    that omit the query param fall through the legacy default to avoid
+    breaking them, but this flag is scheduled for removal once those
+    builds are sunset.
     """
     uid = str(user_id)
 
@@ -32,18 +51,19 @@ async def get_bootstrap_data(supabase: Client, user_id: UUID) -> dict:
     )
     profiles = profiles_r.data
 
-    # Ensure every user has at least one "own" profile so the iOS client
-    # can immediately attach medications/dose events. Without this, a fresh
-    # anonymous user lands on an empty bootstrap and saveMedicationDraft
-    # silently drops the payload because no profile exists.
-    if not profiles:
+    if not profiles and auto_create_profile:
+        # Legacy behaviour kept behind an explicit opt-in for pre-init
+        # iOS builds. Logged so we can see how often it still fires.
+        logger.warning(
+            "bootstrap.auto_create_profile_legacy uid=%s — pre-init iOS build", uid
+        )
         created = (
             supabase.table("profiles")
             .insert({
                 "user_id": uid,
                 "display_name": "Io",
                 "profile_type": "own",
-                "color_hex": "#2B7DD4",
+                "color": "#2B7DD4",
             })
             .execute()
         )
