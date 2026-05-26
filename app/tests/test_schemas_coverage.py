@@ -171,9 +171,9 @@ class TestProfiles:
         assert req.profile_type is None
 
     def test_anchors_default_in_dto(self):
-        # I profili senza colonna `anchors` (DB pre-migration oppure
-        # bootstrap legacy) devono accettare il default factory: 5 anchor
-        # con UN solo slot ciascuno su tutti i 7 giorni.
+        # I profili senza colonna `anchors` (bootstrap legacy) devono
+        # accettare il default factory: 5 eventi italiani con un solo
+        # slot ciascuno su tutti i 7 giorni.
         now = datetime.now(timezone.utc)
         dto = ProfileDTO(
             id=uuid4(),
@@ -184,41 +184,42 @@ class TestProfiles:
             updated_at=now,
         )
         assert len(dto.anchors) == 5
-        assert [a.kind for a in dto.anchors] == [
-            "wake",
-            "breakfast",
-            "lunch",
-            "dinner",
-            "night",
-        ]
+        names = [a.name for a in dto.anchors]
+        assert names == ["Risveglio", "Colazione", "Pranzo", "Cena", "Notte"]
         wake = dto.anchors[0]
         assert len(wake.slots) == 1
         assert wake.slots[0].time == "06:30"
         assert wake.slots[0].weekdays == [1, 2, 3, 4, 5, 6, 7]
+        # UUID stabile = consistente con migration 047 + iOS defaults.
+        assert str(wake.id) == "11111111-1111-1111-1111-111111111111"
 
-    def test_anchors_round_trip_with_multi_slot(self):
-        # Pattern turni: Lun-Mer 06:00 / Gio-Ven 14:00 / Sab-Dom 09:00.
+    def test_anchors_round_trip_custom_event(self):
+        # Evento custom (l'utente ha creato "Turno mattina") con
+        # pattern multi-slot.
+        custom_id = uuid4()
         req = ProfileUpdateRequest(
             anchors=[
                 ProfileAnchorDTO(
-                    kind="wake",
+                    id=custom_id,
+                    name="Turno mattina",
                     slots=[
                         AnchorSlotDTO(id=uuid4(), time="06:00", weekdays=[1, 2, 3]),
                         AnchorSlotDTO(id=uuid4(), time="14:00", weekdays=[4, 5]),
-                        AnchorSlotDTO(id=uuid4(), time="09:00", weekdays=[6, 7]),
                     ],
                 )
             ]
         )
         dumped = req.model_dump(exclude_none=True, mode="json")
-        wake = dumped["anchors"][0]
-        assert len(wake["slots"]) == 3
-        assert wake["slots"][0]["weekdays"] == [1, 2, 3]
-        assert wake["slots"][1]["time"] == "14:00"
+        event = dumped["anchors"][0]
+        assert event["name"] == "Turno mattina"
+        assert event["id"] == str(custom_id)
+        assert len(event["slots"]) == 2
+        assert event["slots"][0]["weekdays"] == [1, 2, 3]
 
-    def test_anchors_rejects_unknown_kind(self):
-        with pytest.raises(ValidationError):
-            ProfileAnchorDTO(kind="snack", slots=[])
+    def test_anchors_can_be_empty_list(self):
+        # L'utente può eliminare tutti gli eventi (lista vuota è valida).
+        req = ProfileUpdateRequest(anchors=[])
+        assert req.anchors == []
 
 
 # ---------------------------------------------------------------------------

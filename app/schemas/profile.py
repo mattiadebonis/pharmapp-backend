@@ -11,26 +11,24 @@ from app.schemas.base import PharmaBaseModel
 # ---------------------------------------------------------------------------
 ProfileType = Literal["own", "assisted", "dependent"]
 ConnectionStatus = Literal["active", "pending"]
-AnchorKind = Literal["wake", "breakfast", "lunch", "dinner", "night"]
 
 
 # ---------------------------------------------------------------------------
 # "La mia giornata" — anchors
 # ---------------------------------------------------------------------------
-# Ogni profilo ha 5 anchor che descrivono i momenti della giornata
-# (Risveglio, Colazione, Pranzo, Cena, Notte). I farmaci possono essere
-# "agganciati" a un anchor invece che a un orario fisso, così quando
-# l'utente sposta — ad esempio — il risveglio da 06:30 a 07:00, tutte
-# le dosi anchored seguono automaticamente.
+# Ogni profilo ha una lista di "eventi della giornata" completamente
+# personalizzabili. I 5 default seedati alla creazione (Risveglio,
+# Colazione, Pranzo, Cena, Notte) sono solo punti di partenza:
+# l'utente può rinominarli, eliminarli e aggiungerne di nuovi.
 #
-# Ogni anchor è composto da uno o più `slots`. Ogni slot è
+# Ogni evento è composto da uno o più `slots`. Ogni slot è
 # (id, time, weekdays). Pattern supportati nativamente:
 #   * single-slot:  [Tutti i giorni · 06:30]
 #   * weekend split: [Lun-Ven · 06:30, Sab-Dom · 08:30]
 #   * turni di lavoro: [Lun-Mer · 06:00, Gio-Ven · 14:00, Sab-Dom · 09:00]
 #
 # Vincolo applicato dal client (UI + AppModel.updateAnchors): all'interno
-# di un singolo anchor, ogni giorno della settimana appare in al più uno
+# di un singolo evento, ogni giorno della settimana appare in al più uno
 # slot. Sovrapposizioni vengono risolte rimuovendo i giorni dagli slot
 # esistenti quando lo slot in editing li reclama.
 class AnchorSlotDTO(PharmaBaseModel):
@@ -40,20 +38,38 @@ class AnchorSlotDTO(PharmaBaseModel):
 
 
 class ProfileAnchorDTO(PharmaBaseModel):
-    kind: AnchorKind
+    id: UUID
+    name: str
     slots: list[AnchorSlotDTO]
 
 
-def _default_anchors() -> list[ProfileAnchorDTO]:
-    def _slot(time: str) -> AnchorSlotDTO:
-        return AnchorSlotDTO(id=uuid4(), time=time, weekdays=[1, 2, 3, 4, 5, 6, 7])
+# UUID stabili per i 5 eventi di default — replicati in
+# `Models.swift::ProfileAnchor.defaultIDs` per allineare client e backend.
+_DEFAULT_ANCHOR_IDS: dict[str, UUID] = {
+    "Risveglio": UUID("11111111-1111-1111-1111-111111111111"),
+    "Colazione": UUID("22222222-2222-2222-2222-222222222222"),
+    "Pranzo":    UUID("33333333-3333-3333-3333-333333333333"),
+    "Cena":      UUID("44444444-4444-4444-4444-444444444444"),
+    "Notte":     UUID("55555555-5555-5555-5555-555555555555"),
+}
 
+_DEFAULT_ANCHOR_SPECS: list[tuple[str, str]] = [
+    ("Risveglio", "06:30"),
+    ("Colazione", "07:00"),
+    ("Pranzo",    "13:00"),
+    ("Cena",      "20:00"),
+    ("Notte",     "23:00"),
+]
+
+
+def _default_anchors() -> list[ProfileAnchorDTO]:
     return [
-        ProfileAnchorDTO(kind="wake", slots=[_slot("06:30")]),
-        ProfileAnchorDTO(kind="breakfast", slots=[_slot("07:00")]),
-        ProfileAnchorDTO(kind="lunch", slots=[_slot("13:00")]),
-        ProfileAnchorDTO(kind="dinner", slots=[_slot("20:00")]),
-        ProfileAnchorDTO(kind="night", slots=[_slot("23:00")]),
+        ProfileAnchorDTO(
+            id=_DEFAULT_ANCHOR_IDS[name],
+            name=name,
+            slots=[AnchorSlotDTO(id=uuid4(), time=time, weekdays=[1, 2, 3, 4, 5, 6, 7])],
+        )
+        for name, time in _DEFAULT_ANCHOR_SPECS
     ]
 
 
