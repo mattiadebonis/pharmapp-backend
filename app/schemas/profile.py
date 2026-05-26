@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import Field
 
@@ -23,23 +23,37 @@ AnchorKind = Literal["wake", "breakfast", "lunch", "dinner", "night"]
 # l'utente sposta — ad esempio — il risveglio da 06:30 a 07:00, tutte
 # le dosi anchored seguono automaticamente.
 #
-# `time` è l'orario unico in formato "HH:mm". `weekdays` è la lista
-# (ISO 8601: 1=Lun … 7=Dom) dei giorni in cui l'anchor è attivo. Per
-# default copre tutti e 7 i giorni; l'utente può deselezionarne alcuni
-# per coprire pattern come "Pranzo solo Lun-Ven".
-class ProfileAnchorDTO(PharmaBaseModel):
-    kind: AnchorKind
+# Ogni anchor è composto da uno o più `slots`. Ogni slot è
+# (id, time, weekdays). Pattern supportati nativamente:
+#   * single-slot:  [Tutti i giorni · 06:30]
+#   * weekend split: [Lun-Ven · 06:30, Sab-Dom · 08:30]
+#   * turni di lavoro: [Lun-Mer · 06:00, Gio-Ven · 14:00, Sab-Dom · 09:00]
+#
+# Vincolo applicato dal client (UI + AppModel.updateAnchors): all'interno
+# di un singolo anchor, ogni giorno della settimana appare in al più uno
+# slot. Sovrapposizioni vengono risolte rimuovendo i giorni dagli slot
+# esistenti quando lo slot in editing li reclama.
+class AnchorSlotDTO(PharmaBaseModel):
+    id: UUID
     time: str  # "HH:mm"
     weekdays: list[int] = Field(default_factory=lambda: [1, 2, 3, 4, 5, 6, 7])
 
 
+class ProfileAnchorDTO(PharmaBaseModel):
+    kind: AnchorKind
+    slots: list[AnchorSlotDTO]
+
+
 def _default_anchors() -> list[ProfileAnchorDTO]:
+    def _slot(time: str) -> AnchorSlotDTO:
+        return AnchorSlotDTO(id=uuid4(), time=time, weekdays=[1, 2, 3, 4, 5, 6, 7])
+
     return [
-        ProfileAnchorDTO(kind="wake", time="06:30"),
-        ProfileAnchorDTO(kind="breakfast", time="07:00"),
-        ProfileAnchorDTO(kind="lunch", time="13:00"),
-        ProfileAnchorDTO(kind="dinner", time="20:00"),
-        ProfileAnchorDTO(kind="night", time="23:00"),
+        ProfileAnchorDTO(kind="wake", slots=[_slot("06:30")]),
+        ProfileAnchorDTO(kind="breakfast", slots=[_slot("07:00")]),
+        ProfileAnchorDTO(kind="lunch", slots=[_slot("13:00")]),
+        ProfileAnchorDTO(kind="dinner", slots=[_slot("20:00")]),
+        ProfileAnchorDTO(kind="night", slots=[_slot("23:00")]),
     ]
 
 

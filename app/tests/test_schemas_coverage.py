@@ -37,6 +37,7 @@ from app.schemas.prescription_request import (
     PrescriptionRequestUpdateRequest,
 )
 from app.schemas.profile import (
+    AnchorSlotDTO,
     ProfileAnchorDTO,
     ProfileCreateRequest,
     ProfileDTO,
@@ -172,7 +173,7 @@ class TestProfiles:
     def test_anchors_default_in_dto(self):
         # I profili senza colonna `anchors` (DB pre-migration oppure
         # bootstrap legacy) devono accettare il default factory: 5 anchor
-        # attivi tutti i 7 giorni.
+        # con UN solo slot ciascuno su tutti i 7 giorni.
         now = datetime.now(timezone.utc)
         dto = ProfileDTO(
             id=uuid4(),
@@ -190,27 +191,34 @@ class TestProfiles:
             "dinner",
             "night",
         ]
-        assert dto.anchors[0].time == "06:30"
-        assert dto.anchors[0].weekdays == [1, 2, 3, 4, 5, 6, 7]
+        wake = dto.anchors[0]
+        assert len(wake.slots) == 1
+        assert wake.slots[0].time == "06:30"
+        assert wake.slots[0].weekdays == [1, 2, 3, 4, 5, 6, 7]
 
-    def test_anchors_round_trip_with_partial_weekdays(self):
-        # Pattern realistico: Pranzo solo Lun-Ven (weekend libero da pranzo).
+    def test_anchors_round_trip_with_multi_slot(self):
+        # Pattern turni: Lun-Mer 06:00 / Gio-Ven 14:00 / Sab-Dom 09:00.
         req = ProfileUpdateRequest(
             anchors=[
                 ProfileAnchorDTO(
-                    kind="lunch", time="13:00", weekdays=[1, 2, 3, 4, 5]
-                ),
-                ProfileAnchorDTO(kind="wake", time="06:30"),
+                    kind="wake",
+                    slots=[
+                        AnchorSlotDTO(id=uuid4(), time="06:00", weekdays=[1, 2, 3]),
+                        AnchorSlotDTO(id=uuid4(), time="14:00", weekdays=[4, 5]),
+                        AnchorSlotDTO(id=uuid4(), time="09:00", weekdays=[6, 7]),
+                    ],
+                )
             ]
         )
         dumped = req.model_dump(exclude_none=True, mode="json")
-        assert dumped["anchors"][0]["weekdays"] == [1, 2, 3, 4, 5]
-        # Default weekdays applicato anche quando il client lo omette.
-        assert dumped["anchors"][1]["weekdays"] == [1, 2, 3, 4, 5, 6, 7]
+        wake = dumped["anchors"][0]
+        assert len(wake["slots"]) == 3
+        assert wake["slots"][0]["weekdays"] == [1, 2, 3]
+        assert wake["slots"][1]["time"] == "14:00"
 
     def test_anchors_rejects_unknown_kind(self):
         with pytest.raises(ValidationError):
-            ProfileAnchorDTO(kind="snack", time="11:00")
+            ProfileAnchorDTO(kind="snack", slots=[])
 
 
 # ---------------------------------------------------------------------------
