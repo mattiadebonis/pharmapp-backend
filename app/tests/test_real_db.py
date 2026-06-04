@@ -146,12 +146,12 @@ class TestSettingsRealDB:
 
         upd = real_authed_client.put(
             "/v2/settings",
-            json={"grace_minutes": 60, "notify_caregivers": False},
+            json={"grace_minutes": 60, "anonymous_notifications": True},
         )
         assert upd.status_code == 200, upd.text
         updated = upd.json()
         assert updated["grace_minutes"] == 60
-        assert updated["notify_caregivers"] is False
+        assert updated["anonymous_notifications"] is True
 
 
 # ---------------------------------------------------------------------------

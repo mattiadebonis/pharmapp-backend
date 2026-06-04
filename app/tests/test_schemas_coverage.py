@@ -397,7 +397,7 @@ class TestDeviceTokens:
 class TestSettings:
     def test_update_all_optional(self):
         req = UserSettingsUpdateRequest()
-        assert req.notifications_enabled is None
+        assert req.grace_minutes is None
 
     def test_rejects_invalid_tracking_mode(self):
         with pytest.raises(ValidationError):
@@ -405,10 +405,11 @@ class TestSettings:
 
     def test_partial_update(self):
         req = UserSettingsUpdateRequest(
-            notify_caregivers=False,
             grace_minutes=60,
+            anonymous_notifications=True,
         )
-        assert req.notify_caregivers is False
+        assert req.grace_minutes == 60
+        assert req.anonymous_notifications is True
 
 
 # ---------------------------------------------------------------------------

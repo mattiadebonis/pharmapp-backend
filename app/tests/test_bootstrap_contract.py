@@ -62,13 +62,8 @@ def _seed_full(supabase: FakeSupabase) -> None:
             {
                 "user_id": str(TEST_USER_ID),
                 "catalog_country": "it",
-                "default_refill_threshold": 7,
                 "default_tracking_mode": "passive",
-                "default_snooze_minutes": 10,
                 "grace_minutes": 120,
-                "notify_caregivers": True,
-                "notifications_enabled": True,
-                "refill_alerts_enabled": True,
                 "biometrics_enabled": False,
                 "face_id_sensitive_actions": False,
                 "anonymous_notifications": False,
@@ -222,11 +217,16 @@ def _seed_full(supabase: FakeSupabase) -> None:
 
 def _normalize(payload: dict) -> dict:
     """Replace volatile fields (timestamps that the service injects on
-    read) with stable placeholders so the snapshot diff is meaningful."""
+    read, uuid4-generated anchor slot ids) with stable placeholders so
+    the snapshot diff is meaningful."""
     if "subscription" in payload and isinstance(payload["subscription"], dict):
         sub = payload["subscription"]
         if sub.get("last_validated_at"):
             sub["last_validated_at"] = "2026-05-01T08:00:00+00:00"
+    for profile in payload.get("profiles", []) or []:
+        for anchor in profile.get("anchors", []) or []:
+            for idx, slot in enumerate(anchor.get("slots", []) or []):
+                slot["id"] = f"slot-{anchor.get('name', 'unknown')}-{idx}"
     return payload
 
 

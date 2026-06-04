@@ -1,6 +1,8 @@
 from datetime import date, datetime
 from uuid import UUID
 
+from pydantic import ConfigDict
+
 from app.schemas.base import PharmaBaseModel
 
 
@@ -37,6 +39,11 @@ class SupplyCreateRequest(PharmaBaseModel):
 # Update request
 # ---------------------------------------------------------------------------
 class SupplyUpdateRequest(PharmaBaseModel):
+    # Allow legacy iOS clients to send `medication_id` in the body without
+    # tripping the global `extra="forbid"`. The router takes the medication
+    # from the path; the service drops any body value before writing.
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, extra="ignore")
+
     pills_at_purchase: float | None = None
     current_pills: float | None = None
     purchase_date: date | None = None

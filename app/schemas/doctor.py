@@ -29,6 +29,7 @@ class DoctorDTO(PharmaBaseModel):
     secretary_email: str | None = None
     secretary_phone: str | None = None
     secretary_schedule_json: dict[str, Any] | None = None
+    secretary_office_hours: str | None = None
     prescription_message_template: str | None = None
     whatsapp_message_template: str | None = None
     preferenza_canale: CommunicationChannel | None = None
@@ -57,6 +58,7 @@ class DoctorCreateRequest(PharmaBaseModel):
     secretary_email: str | None = None
     secretary_phone: str | None = None
     secretary_schedule_json: dict[str, Any] | None = None
+    secretary_office_hours: str | None = None
     prescription_message_template: str | None = None
     whatsapp_message_template: str | None = None
     preferenza_canale: CommunicationChannel | None = None
@@ -82,6 +84,7 @@ class DoctorUpdateRequest(PharmaBaseModel):
     secretary_email: str | None = None
     secretary_phone: str | None = None
     secretary_schedule_json: dict[str, Any] | None = None
+    secretary_office_hours: str | None = None
     prescription_message_template: str | None = None
     whatsapp_message_template: str | None = None
     preferenza_canale: CommunicationChannel | None = None

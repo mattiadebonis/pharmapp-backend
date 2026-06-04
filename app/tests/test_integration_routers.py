@@ -295,6 +295,80 @@ class TestSuppliesRouter:
         # Route exists and ownership check passed; supplies row absent → 200/null
         assert resp.status_code == 200
 
+    def test_put_accepts_payload_without_medication_id(
+        self, authed_client: TestClient, fake_supabase: FakeSupabase
+    ):
+        """The PUT body should not require medication_id (it's in the path).
+
+        Regression for the previous SupplyCreateRequest schema that forced
+        clients to repeat the FK in the body and triggered 422 when omitted.
+        """
+        med_id = str(uuid4())
+        prof_id = str(uuid4())
+        fake_supabase.seed_select(
+            "medications",
+            [{"id": med_id, "profile_id": prof_id, "profiles": {"user_id": str(TEST_USER_ID)}}],
+        )
+        fake_supabase.seed_select("supplies", [])
+        resp = authed_client.put(
+            f"/v2/medications/{med_id}/supply",
+            json={
+                "pills_at_purchase": 30,
+                "current_pills": 30,
+                "purchase_date": "2026-06-04",
+                "refill_threshold_days": 7,
+                "package_units": 30,
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        insert_payload = fake_supabase.recorded_inserts["supplies"][0]
+        assert insert_payload["medication_id"] == med_id
+        assert insert_payload["current_pills"] == 30
+
+    def test_put_strips_legacy_medication_id_from_body(
+        self, authed_client: TestClient, fake_supabase: FakeSupabase
+    ):
+        """Old clients still send medication_id in the body — the server
+        must accept it but never write the legacy value to the row."""
+        med_id = str(uuid4())
+        legacy_id = str(uuid4())
+        prof_id = str(uuid4())
+        fake_supabase.seed_select(
+            "medications",
+            [{"id": med_id, "profile_id": prof_id, "profiles": {"user_id": str(TEST_USER_ID)}}],
+        )
+        # Seed an existing row → branch UPDATE
+        existing_supply_id = str(uuid4())
+        fake_supabase.seed_select(
+            "supplies",
+            [{
+                "id": existing_supply_id,
+                "medication_id": med_id,
+                "current_pills": 5,
+                "pills_at_purchase": 30,
+                "purchase_date": "2026-05-01",
+                "refill_threshold_days": 7,
+                "package_units": 30,
+                "created_at": "2026-05-01T00:00:00+00:00",
+                "updated_at": "2026-05-01T00:00:00+00:00",
+            }],
+        )
+        resp = authed_client.put(
+            f"/v2/medications/{med_id}/supply",
+            json={
+                "medication_id": legacy_id,  # bogus, must be ignored
+                "current_pills": 42,
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        # Find the UPDATE call and check the payload
+        update_calls = [
+            c for c in fake_supabase.calls
+            if c._table == "supplies" and c._operation == "update"
+        ]
+        assert update_calls, "expected an UPDATE on supplies"
+        assert "medication_id" not in update_calls[-1]._payload
+
 
 # ---------------------------------------------------------------------------
 # Prescriptions

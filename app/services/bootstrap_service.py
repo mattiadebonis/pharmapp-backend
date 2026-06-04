@@ -89,13 +89,8 @@ async def get_bootstrap_data(
             .insert({
                 "user_id": uid,
                 "catalog_country": "it",
-                "default_refill_threshold": 7,
                 "default_tracking_mode": "passive",
-                "default_snooze_minutes": 10,
                 "grace_minutes": 120,
-                "notify_caregivers": True,
-                "notifications_enabled": True,
-                "refill_alerts_enabled": True,
                 "biometrics_enabled": False,
                 "face_id_sensitive_actions": False,
                 "anonymous_notifications": False,
