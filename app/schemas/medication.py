@@ -43,7 +43,7 @@ class EmbeddedScheduleCreate(PharmaBaseModel):
     rrule: str | None = None
     is_active: bool = True
     importance: Literal["vital", "essential", "standard"] = "standard"
-    notification_level: Literal["normal", "alarm"] = "normal"
+    notification_level: Literal["normal", "alarm"] = "alarm"
     snooze_minutes: int | None = None
     notifications_silenced: bool = False
     weekly_overrides: dict[str, float] | None = None

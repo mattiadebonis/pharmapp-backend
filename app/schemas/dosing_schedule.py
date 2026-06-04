@@ -37,7 +37,7 @@ class DosingScheduleDTO(PharmaBaseModel):
     rrule: str | None = None
     is_active: bool = True
     importance: Importance = "standard"
-    notification_level: NotificationLevel = "normal"
+    notification_level: NotificationLevel = "alarm"
     snooze_minutes: int | None = None
     notifications_silenced: bool = False
     # weekday (string "1"–"7", Calendar: 1=Sun…7=Sat) → pills_per_dose override.
@@ -76,7 +76,7 @@ class DosingScheduleCreateRequest(PharmaBaseModel):
     rrule: str | None = None
     is_active: bool = True
     importance: Importance = "standard"
-    notification_level: NotificationLevel = "normal"
+    notification_level: NotificationLevel = "alarm"
     snooze_minutes: int | None = None
     notifications_silenced: bool = False
     weekly_overrides: dict[str, float] | None = None
