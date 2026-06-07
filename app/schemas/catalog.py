@@ -4,7 +4,6 @@ from pydantic import ConfigDict, Field
 
 from app.schemas.base import PharmaBaseModel
 
-
 # I DTO del catalog sono particolarmente esposti a evoluzioni di schema
 # (RPC server-side che aggiungono campi via migration). Per evitare che
 # un campo nuovo nel JSON DB faccia esplodere l'endpoint con 500 prima

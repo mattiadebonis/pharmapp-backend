@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -215,10 +216,21 @@ def _seed_full(supabase: FakeSupabase) -> None:
     )
 
 
+# Fixed namespace so anchor slot ids are deterministic across runs. The
+# value is arbitrary but stable; do not change it or snapshots churn.
+_SLOT_ID_NAMESPACE = uuid.UUID("6f9619ff-8b86-d011-b42d-00c04fc964ff")
+
+
 def _normalize(payload: dict) -> dict:
     """Replace volatile fields (timestamps that the service injects on
     read, uuid4-generated anchor slot ids) with stable placeholders so
-    the snapshot diff is meaningful."""
+    the snapshot diff is meaningful.
+
+    Anchor slot ids are redacted to *deterministic UUIDs* (uuid5 over the
+    anchor name + index) rather than free-form strings: the iOS
+    ``AnchorSlot.id`` field decodes as a ``UUID``, so the snapshot must
+    stay UUID-valid for ``BootstrapContractTests`` to decode it.
+    """
     if "subscription" in payload and isinstance(payload["subscription"], dict):
         sub = payload["subscription"]
         if sub.get("last_validated_at"):
@@ -226,7 +238,8 @@ def _normalize(payload: dict) -> dict:
     for profile in payload.get("profiles", []) or []:
         for anchor in profile.get("anchors", []) or []:
             for idx, slot in enumerate(anchor.get("slots", []) or []):
-                slot["id"] = f"slot-{anchor.get('name', 'unknown')}-{idx}"
+                seed = f"slot-{anchor.get('name', 'unknown')}-{idx}"
+                slot["id"] = str(uuid.uuid5(_SLOT_ID_NAMESPACE, seed))
     return payload
 
 

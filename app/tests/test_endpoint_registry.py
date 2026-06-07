@@ -82,6 +82,9 @@ EXPECTED_ENDPOINTS: list[tuple[str, str]] = [
     ("GET", "/v2/medications/{medication_id}/supply"),
     ("PUT", "/v2/medications/{medication_id}/supply"),
     ("DELETE", "/v2/medications/{medication_id}/supply"),
+    # Packages (scorte per dosaggio)
+    ("GET", "/v2/medications/{medication_id}/packages"),
+    ("PUT", "/v2/medications/{medication_id}/packages"),
     # Prescriptions
     ("GET", "/v2/medications/{medication_id}/prescriptions"),
     ("POST", "/v2/medications/{medication_id}/prescriptions"),

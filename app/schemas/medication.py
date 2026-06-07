@@ -2,9 +2,12 @@ from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
+from pydantic import field_validator
+
 from app.schemas.base import PharmaBaseModel
-from app.schemas.dosing_schedule import DosingScheduleDTO
+from app.schemas.dosing_schedule import DosingScheduleDTO, WeeklyOverrides
 from app.schemas.injection_site import InjectionSiteDTO
+from app.schemas.medication_package import EmbeddedPackageCreate, MedicationPackageDTO
 from app.schemas.prescription import PrescriptionDTO
 from app.schemas.supply import SupplyDTO
 
@@ -46,7 +49,7 @@ class EmbeddedScheduleCreate(PharmaBaseModel):
     notification_level: Literal["normal", "alarm"] = "alarm"
     snooze_minutes: int | None = None
     notifications_silenced: bool = False
-    weekly_overrides: dict[str, float] | None = None
+    weekly_overrides: WeeklyOverrides | None = None
     format: Literal["compressa", "inalatore", "gocce", "altro"] | None = None
     daily_limit: int | None = None
     weekly_alert_threshold: int | None = None
@@ -55,6 +58,15 @@ class EmbeddedScheduleCreate(PharmaBaseModel):
     notify_day_before: bool = False
     post_tapering_behavior: Literal["fine_terapia", "mantenimento"] | None = None
     late_threshold_minutes: int | None = None
+    strength_mg: float | None = None
+    strength_text: str | None = None
+
+    @field_validator("strength_mg")
+    @classmethod
+    def _strength_mg_non_negative(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError("strength_mg must be >= 0")
+        return v
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +148,10 @@ class MedicationCreateRequest(PharmaBaseModel):
     # Senza questo, il bootstrap risponderebbe con supply=null al
     # prossimo refresh e iOS mostrerebbe "scorte non gestite".
     supply: EmbeddedSupplyCreate | None = None
+    # Optional embedded packages — scorte per dosaggio (fonte di verità).
+    # Una per ogni dosaggio distinto usato in posologia. Il backend le
+    # inserisce su `medication_packages` con il nuovo medication_id.
+    packages: list[EmbeddedPackageCreate] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -171,4 +187,5 @@ class MedicationUpdateRequest(PharmaBaseModel):
 class MedicationWithDetailsDTO(MedicationDTO):
     schedules: list[DosingScheduleDTO] = []
     supply: SupplyDTO | None = None
+    packages: list[MedicationPackageDTO] = []
     prescriptions: list[PrescriptionDTO] = []

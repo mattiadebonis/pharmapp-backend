@@ -143,6 +143,60 @@ def _days_in_month(year: int, month: int) -> int:
 # ---------------------------------------------------------------------------
 # Expected doses generator
 # ---------------------------------------------------------------------------
+def _tapering_units(schedule: dict[str, Any], d: date) -> float:
+    """Unità attese in un giorno per uno schedule a fasi (Variabile), ancorato
+    a `cycle_start_date`. Rispetta `post_tapering_behavior` oltre l'ultima fase:
+    `fine_terapia` → 0 (Stop), `mantenimento` → ultima dose, `ripeti` → ciclo.
+    Mirror della logica iOS `taperingPhase`/`pillsForDate`.
+    """
+    steps = schedule.get("tapering_steps") or []
+    anchor = _parse_date(schedule.get("cycle_start_date"))
+    if not steps or anchor is None:
+        return float(schedule.get("pills_per_dose") or 0.0)
+
+    def _dur(step: dict) -> int:
+        return max(int(step.get("duration_days") or step.get("days") or 1), 1)
+
+    def _dose(step: dict) -> float:
+        return float(step.get("dose") or step.get("pills_per_dose") or 0.0)
+
+    total = sum(_dur(s) for s in steps)
+    day_offset = (d - anchor).days + 1
+    if day_offset < 1:
+        return 0.0
+    if day_offset > total:
+        behavior = schedule.get("post_tapering_behavior") or "mantenimento"
+        if behavior == "fine_terapia":
+            return 0.0
+        if behavior == "mantenimento":
+            return _dose(steps[-1])
+        # ripeti → rientra nell'intervallo [1, total]
+        day_offset = ((day_offset - 1) % total) + 1
+
+    lower = 1
+    for s in steps:
+        upper = lower + _dur(s) - 1
+        if day_offset <= upper:
+            return _dose(s)
+        lower = upper + 1
+    return _dose(steps[-1])
+
+
+def _override_units(override: Any) -> float:
+    """Unità totali di un override `weekly_overrides` per-giorno, accettando le
+    3 shape: numero legacy, oggetto singolo `{units,…}`, o lista di componenti.
+    """
+    if override is None or isinstance(override, bool):
+        return 0.0
+    if isinstance(override, (int, float)):
+        return float(override)
+    if isinstance(override, dict):
+        return float(override.get("units") or 0.0)
+    if isinstance(override, list):
+        return sum(float(c.get("units") or 0.0) for c in override if isinstance(c, dict))
+    return 0.0
+
+
 def expected_doses(
     medication: dict[str, Any],
     schedule: dict[str, Any],
@@ -173,6 +227,7 @@ def expected_doses(
     days = _generate_days(schedule, window_start, range_to)
     pills_per_dose = float(schedule.get("pills_per_dose") or 1.0)
     weekly_overrides = schedule.get("weekly_overrides") or {}
+    tapering_steps = schedule.get("tapering_steps") or []
     times_list = schedule.get("times") or [{"time": "09:00"}]
 
     out: list[tuple[datetime, float]] = []
@@ -181,9 +236,12 @@ def expected_doses(
         if weekly_overrides:
             override = weekly_overrides.get(weekday_key)
             if override is not None:
-                pills_today = float(override)
+                pills_today = _override_units(override)
             else:
                 pills_today = pills_per_dose
+        elif tapering_steps:
+            # Variabile a fasi: dose della fase attiva (Stop/Ripeti/Mantieni).
+            pills_today = _tapering_units(schedule, d)
         else:
             pills_today = pills_per_dose
         if pills_today <= 0:

@@ -17,7 +17,7 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
-from app.tests.conftest import TEST_USER_ID, FakeSupabase
+from app.tests.conftest import FakeSupabase
 
 
 def _ts() -> str:

@@ -16,7 +16,6 @@ from pydantic import Field
 
 from app.schemas.base import PharmaBaseModel
 
-
 ParameterValueType = Literal["numericSingle", "numericDouble", "text"]
 
 

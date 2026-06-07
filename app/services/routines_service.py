@@ -8,7 +8,6 @@ routine. This file owns that takeover bookkeeping.
 
 from uuid import UUID
 
-from fastapi import HTTPException, status
 from supabase import Client
 
 from app.schemas.routine import RoutineCreateRequest, RoutineUpdateRequest
@@ -26,7 +25,6 @@ from app.services._shared import (
     get_owned_profile_ids,
     log_activity,
 )
-
 
 # ---------------------------------------------------------------------------
 # Internal helpers

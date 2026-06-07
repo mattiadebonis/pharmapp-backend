@@ -14,7 +14,6 @@ from app.schemas.medication import (
 from app.services.medications_service import (
     create_medication,
     delete_medication,
-    get_medication,
     get_medication_with_details,
     list_medications,
     update_medication,

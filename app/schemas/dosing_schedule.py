@@ -1,9 +1,10 @@
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from app.schemas.base import PharmaBaseModel
+from pydantic import BeforeValidator, Field, field_validator
 
+from app.schemas.base import PharmaBaseModel
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -14,7 +15,48 @@ Importance = Literal["vital", "essential", "standard"]
 NotificationLevel = Literal["normal", "alarm"]
 DoseFormat = Literal["compressa", "inalatore", "gocce", "altro"]
 CyclePattern = Literal["weekly", "biweekly", "every_n"]
-PostTaperingBehavior = Literal["fine_terapia", "mantenimento"]
+PostTaperingBehavior = Literal["fine_terapia", "mantenimento", "ripeti"]
+
+
+# ---------------------------------------------------------------------------
+# Per-day dose composition (weekly_overrides)
+# ---------------------------------------------------------------------------
+class DoseComponentSchema(PharmaBaseModel):
+    """Un componente di dose: `units` compresse di un certo dosaggio (mg)."""
+
+    units: float = Field(default=0, ge=0)
+    strength_mg: float | None = Field(default=None, ge=0)
+    strength_text: str | None = None
+
+
+def _normalize_weekly_overrides(v: Any) -> Any:
+    """Normalizza i 3 formati di `weekly_overrides` (per giorno) a lista di
+    componenti: numero legacy → [{units}]; oggetto singolo → [obj]; lista →
+    passthrough. Mantiene la retro-compatibilità con i dati DB esistenti.
+    """
+    if not isinstance(v, dict):
+        return v
+    out: dict[str, Any] = {}
+    for key, val in v.items():
+        if isinstance(val, bool):
+            out[key] = []
+        elif isinstance(val, (int, float)):
+            out[key] = [{"units": float(val)}]
+        elif isinstance(val, dict):
+            out[key] = [val]
+        elif isinstance(val, list):
+            out[key] = val
+        else:
+            out[key] = []
+    return out
+
+
+# weekday (string "1"–"7", Calendar: 1=Sun…7=Sat) → lista di componenti dose.
+# Accetta anche la shape legacy (numero = unità) via BeforeValidator.
+WeeklyOverrides = Annotated[
+    dict[str, list[DoseComponentSchema]],
+    BeforeValidator(_normalize_weekly_overrides),
+]
 
 
 # ---------------------------------------------------------------------------
@@ -42,7 +84,7 @@ class DosingScheduleDTO(PharmaBaseModel):
     notifications_silenced: bool = False
     # weekday (string "1"–"7", Calendar: 1=Sun…7=Sat) → pills_per_dose override.
     # A value of 0 means skip that day (no event, no notification).
-    weekly_overrides: dict[str, float] | None = None
+    weekly_overrides: WeeklyOverrides | None = None
     # Redesigned "Quando lo prendi" fields (migration 008)
     format: DoseFormat | None = None
     daily_limit: int | None = None
@@ -54,6 +96,10 @@ class DosingScheduleDTO(PharmaBaseModel):
     # Soglia in minuti oltre due_at per classificare la dose come "ritardo".
     # NULL → 30 min (default applicativo, vedi adherence_service).
     late_threshold_minutes: int | None = None
+    # Dosaggio (strength) per unità, scelto in Posologia. La dose totale di
+    # un'assunzione = pills_per_dose (unità) × strength_mg (mg per unità).
+    strength_mg: float | None = None
+    strength_text: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -79,7 +125,7 @@ class DosingScheduleCreateRequest(PharmaBaseModel):
     notification_level: NotificationLevel = "alarm"
     snooze_minutes: int | None = None
     notifications_silenced: bool = False
-    weekly_overrides: dict[str, float] | None = None
+    weekly_overrides: WeeklyOverrides | None = None
     format: DoseFormat | None = None
     daily_limit: int | None = None
     weekly_alert_threshold: int | None = None
@@ -88,6 +134,22 @@ class DosingScheduleCreateRequest(PharmaBaseModel):
     notify_day_before: bool = False
     post_tapering_behavior: PostTaperingBehavior | None = None
     late_threshold_minutes: int | None = None
+    strength_mg: float | None = None
+    strength_text: str | None = None
+
+    @field_validator("strength_mg")
+    @classmethod
+    def _strength_mg_non_negative(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError("strength_mg must be >= 0")
+        return v
+
+    @field_validator("pills_per_dose")
+    @classmethod
+    def _pills_per_dose_positive(cls, v: float | None) -> float | None:
+        if v is not None and v <= 0:
+            raise ValueError("pills_per_dose must be > 0")
+        return v
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +172,7 @@ class DosingScheduleUpdateRequest(PharmaBaseModel):
     notification_level: NotificationLevel | None = None
     snooze_minutes: int | None = None
     notifications_silenced: bool | None = None
-    weekly_overrides: dict[str, float] | None = None
+    weekly_overrides: WeeklyOverrides | None = None
     format: DoseFormat | None = None
     daily_limit: int | None = None
     weekly_alert_threshold: int | None = None
@@ -119,3 +181,12 @@ class DosingScheduleUpdateRequest(PharmaBaseModel):
     notify_day_before: bool | None = None
     post_tapering_behavior: PostTaperingBehavior | None = None
     late_threshold_minutes: int | None = None
+    strength_mg: float | None = None
+    strength_text: str | None = None
+
+    @field_validator("strength_mg")
+    @classmethod
+    def _strength_mg_non_negative(cls, v: float | None) -> float | None:
+        if v is not None and v < 0:
+            raise ValueError("strength_mg must be >= 0")
+        return v

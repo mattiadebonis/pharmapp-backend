@@ -71,6 +71,7 @@
       "managed_by_routine_id": null,
       "name": "Tachipirina",
       "notes": null,
+      "packages": [],
       "prescribing_doctor_id": null,
       "prescriptions": [],
       "principle": "paracetamolo",
@@ -101,6 +102,8 @@
           "rrule": "FREQ=DAILY",
           "schedule_type": "scheduled",
           "snooze_minutes": null,
+          "strength_mg": null,
+          "strength_text": null,
           "tapering_steps": null,
           "times": [
             {
@@ -251,7 +254,7 @@
           "name": "Risveglio",
           "slots": [
             {
-              "id": "slot-Risveglio-0",
+              "id": "f0303378-0757-598a-9317-73ec3c8fde32",
               "time": "06:30",
               "weekdays": [
                 1,
@@ -270,7 +273,7 @@
           "name": "Colazione",
           "slots": [
             {
-              "id": "slot-Colazione-0",
+              "id": "9589a65f-2b3a-5943-a336-e179162a23ff",
               "time": "07:00",
               "weekdays": [
                 1,
@@ -289,7 +292,7 @@
           "name": "Pranzo",
           "slots": [
             {
-              "id": "slot-Pranzo-0",
+              "id": "22b824be-0932-5001-b0d1-fc95109e9145",
               "time": "13:00",
               "weekdays": [
                 1,
@@ -308,7 +311,7 @@
           "name": "Cena",
           "slots": [
             {
-              "id": "slot-Cena-0",
+              "id": "9693bc12-4c5c-514c-9552-4d38bc5ad700",
               "time": "20:00",
               "weekdays": [
                 1,
@@ -327,7 +330,7 @@
           "name": "Notte",
           "slots": [
             {
-              "id": "slot-Notte-0",
+              "id": "2cbeff0c-7cab-542a-a977-05eb833f26ee",
               "time": "23:00",
               "weekdays": [
                 1,

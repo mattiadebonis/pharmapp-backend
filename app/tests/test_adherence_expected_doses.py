@@ -118,6 +118,82 @@ def test_weekly_overrides_custom_dose():
     assert out[0][1] == 2.0
 
 
+def test_weekly_overrides_multi_component_sums_units():
+    # Nuova shape: un giorno con due componenti (1 + 1 = 2 compresse).
+    out = expected_doses(
+        _med(),
+        _sched_scheduled(
+            weekly_overrides={
+                "2": [
+                    {"units": 1, "strength_mg": 5, "strength_text": "5 mg"},
+                    {"units": 1, "strength_mg": 2.5, "strength_text": "2,5 mg"},
+                ]
+            }
+        ),
+        range_from=date(2026, 4, 6),
+        range_to=date(2026, 4, 6),
+    )
+    assert len(out) == 1
+    assert out[0][1] == 2.0
+
+
+def test_weekly_overrides_empty_list_skips_day():
+    out = expected_doses(
+        _med(),
+        _sched_scheduled(weekly_overrides={"2": []}),
+        range_from=date(2026, 4, 6),
+        range_to=date(2026, 4, 12),
+    )
+    assert len(out) == 6
+
+
+def _sched_tapering(behavior: str, anchor: str = "2026-04-06") -> dict:
+    return {
+        "id": "s1",
+        "medication_id": "m1",
+        "schedule_type": "scheduled",
+        "times": [{"time": "09:00"}],
+        "pills_per_dose": 1.0,
+        "is_active": True,
+        "tapering_steps": [
+            {"duration_days": 2, "dose": 2},
+            {"duration_days": 2, "dose": 1},
+        ],
+        "cycle_start_date": anchor,
+        "post_tapering_behavior": behavior,
+    }
+
+
+def test_tapering_stop_ends_after_last_phase():
+    out = expected_doses(
+        _med(),
+        _sched_tapering("fine_terapia"),
+        range_from=date(2026, 4, 6),
+        range_to=date(2026, 4, 13),  # 8 giorni, fasi totali = 4
+    )
+    assert [p for _, p in out] == [2, 2, 1, 1]  # giorni 5-8 = 0 → saltati
+
+
+def test_tapering_mantieni_keeps_last_dose():
+    out = expected_doses(
+        _med(),
+        _sched_tapering("mantenimento"),
+        range_from=date(2026, 4, 6),
+        range_to=date(2026, 4, 13),
+    )
+    assert [p for _, p in out] == [2, 2, 1, 1, 1, 1, 1, 1]
+
+
+def test_tapering_ripeti_cycles_phases():
+    out = expected_doses(
+        _med(),
+        _sched_tapering("ripeti"),
+        range_from=date(2026, 4, 6),
+        range_to=date(2026, 4, 13),
+    )
+    assert [p for _, p in out] == [2, 2, 1, 1, 2, 2, 1, 1]
+
+
 def test_cycle_weekly_specific_weekdays():
     # Bactrim-like: lun/mer/ven only (ISO 1, 3, 5)
     sched = {

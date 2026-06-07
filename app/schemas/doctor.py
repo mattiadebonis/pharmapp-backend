@@ -4,7 +4,6 @@ from uuid import UUID
 
 from app.schemas.base import PharmaBaseModel
 
-
 CommunicationChannel = Literal["telefono", "whatsapp", "email"]
 
 

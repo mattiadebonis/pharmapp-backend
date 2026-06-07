@@ -13,7 +13,6 @@ from pydantic import ValidationError
 from app.schemas.routine import RoutineCreateRequest
 from app.schemas.routine_step import (
     EventStepData,
-    MeasurementStepData,
     MedicationStepData,
     RoutineStepDTO,
     WaitStepData,

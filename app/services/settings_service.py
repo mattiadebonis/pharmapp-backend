@@ -3,7 +3,6 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from supabase import Client
 
-
 # Default values matching the DB schema defaults
 _DEFAULTS = {
     "catalog_country": "it",

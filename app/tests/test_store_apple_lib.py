@@ -68,11 +68,12 @@ class TestApplePrivacyVerify:
         """Use a valid (self-signed) cert as the root — verifier loads
         but the signed transaction signature won't validate against it.
         Expects 400 (signature_invalid) not 500 (config error)."""
+        from datetime import datetime, timedelta, timezone
+
         from cryptography import x509
         from cryptography.hazmat.primitives import hashes, serialization
         from cryptography.hazmat.primitives.asymmetric import ec
         from cryptography.x509.oid import NameOID
-        from datetime import datetime, timedelta, timezone
 
         key = ec.generate_private_key(ec.SECP256R1())
         subject = issuer = x509.Name([

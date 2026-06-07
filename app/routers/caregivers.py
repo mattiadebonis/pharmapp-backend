@@ -1,7 +1,6 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
-from slowapi import Limiter
 from supabase import Client
 
 from app.auth.models import AuthenticatedUser
@@ -16,15 +15,15 @@ from app.schemas.caregiver import (
 )
 from app.services.caregivers_service import (
     accept_invite,
-    confirm_invite,
     approve_change,
+    confirm_invite,
     create_invite,
     create_pending_change,
     list_patient_confirmations,
     list_pending_changes,
     list_relations,
-    reject_invite,
     reject_change,
+    reject_invite,
     revoke_relation,
 )
 

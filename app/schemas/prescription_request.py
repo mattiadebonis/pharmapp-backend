@@ -4,7 +4,6 @@ from uuid import UUID
 
 from app.schemas.base import PharmaBaseModel
 
-
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
@@ -18,6 +17,8 @@ PrescriptionRequestStatus = Literal["pending", "purchased", "cancelled"]
 class PrescriptionRequestDTO(PharmaBaseModel):
     id: UUID
     medication_id: UUID
+    # Dosaggio specifico della richiesta (es. "10 mg"); None = farmaco intero.
+    strength_text: str | None = None
     doctor_id: UUID | None = None
     sent_at: datetime
     channel: PrescriptionRequestChannel
@@ -33,6 +34,7 @@ class PrescriptionRequestDTO(PharmaBaseModel):
 # ---------------------------------------------------------------------------
 class PrescriptionRequestCreateRequest(PharmaBaseModel):
     id: UUID | None = None
+    strength_text: str | None = None
     doctor_id: UUID | None = None
     sent_at: datetime | None = None
     channel: PrescriptionRequestChannel

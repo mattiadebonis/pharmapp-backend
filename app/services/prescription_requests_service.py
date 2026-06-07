@@ -4,7 +4,6 @@ from uuid import UUID, uuid4
 from fastapi import HTTPException, status
 from supabase import Client
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

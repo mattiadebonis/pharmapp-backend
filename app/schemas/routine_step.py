@@ -14,7 +14,6 @@ from pydantic import Field
 
 from app.schemas.base import PharmaBaseModel
 
-
 # ---------------------------------------------------------------------------
 # Step data variants (discriminated by step_type)
 # ---------------------------------------------------------------------------

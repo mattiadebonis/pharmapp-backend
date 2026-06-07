@@ -3,7 +3,6 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from supabase import Client
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -96,6 +95,9 @@ async def create_medication(supabase: Client, user_id: UUID, data) -> dict:
     # quella `supplies` → al prossimo bootstrap supply=null → UI mostra
     # "scorte non gestite". Vedi commit fix.
     embedded_supply = payload.pop("supply", None)
+    # Extract optional embedded packages — scorte per dosaggio (fonte di
+    # verità). Una riga `medication_packages` per ogni dosaggio.
+    embedded_packages = payload.pop("packages", None) or []
     # Upsert when client provides id (offline retry, idempotent confirm
     # replay). Without id, plain insert as before.
     if payload.get("id"):
@@ -123,6 +125,19 @@ async def create_medication(supabase: Client, user_id: UUID, data) -> dict:
         supabase.table("supplies").upsert(
             embedded_supply, on_conflict="medication_id"
         ).execute()
+    if embedded_packages:
+        pkg_rows = []
+        for pkg in embedded_packages:
+            pkg["medication_id"] = med_id
+            if pkg.get("id"):
+                pkg["id"] = str(pkg["id"]).lower()
+            pkg_rows.append(pkg)
+        # Upsert per id quando presente (replay offline idempotente),
+        # altrimenti insert semplice.
+        if any(r.get("id") for r in pkg_rows):
+            supabase.table("medication_packages").upsert(pkg_rows, on_conflict="id").execute()
+        else:
+            supabase.table("medication_packages").insert(pkg_rows).execute()
     return medication
 
 
@@ -154,6 +169,12 @@ async def get_medication_with_details(
         .eq("medication_id", mid)
         .execute()
     )
+    packages_r = (
+        supabase.table("medication_packages")
+        .select("*")
+        .eq("medication_id", mid)
+        .execute()
+    )
     prescriptions_r = (
         supabase.table("prescriptions")
         .select("*")
@@ -165,6 +186,7 @@ async def get_medication_with_details(
         **row,
         "schedules": schedule_r.data,
         "supply": supply_r.data[0] if supply_r.data else None,
+        "packages": packages_r.data or [],
         "prescriptions": prescriptions_r.data,
     }
 

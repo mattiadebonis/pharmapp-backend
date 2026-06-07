@@ -4,8 +4,8 @@ from app.schemas.caregiver import CaregiverRelationDTO, PendingChangeDTO
 from app.schemas.device_token import DeviceTokenDTO
 from app.schemas.doctor import DoctorDTO
 from app.schemas.dose_event import DoseEventDTO
-from app.schemas.medication import MedicationWithDetailsDTO
 from app.schemas.measurement import MeasurementDTO
+from app.schemas.medication import MedicationWithDetailsDTO
 from app.schemas.parameter import ParameterDTO
 from app.schemas.prescription_request import PrescriptionRequestDTO
 from app.schemas.profile import ProfileDTO

@@ -342,6 +342,14 @@ class TestPrescriptionRequests:
         req = PrescriptionRequestUpdateRequest(purchased_at=datetime.now(timezone.utc))
         assert req.purchased_at is not None
 
+    def test_create_accepts_strength_text(self):
+        req = PrescriptionRequestCreateRequest(channel="whatsapp", strength_text="10 mg")
+        assert req.strength_text == "10 mg"
+
+    def test_create_strength_text_defaults_none(self):
+        req = PrescriptionRequestCreateRequest(channel="mail")
+        assert req.strength_text is None
+
 
 # ---------------------------------------------------------------------------
 # Doctors
@@ -451,7 +459,8 @@ class TestDosingSchedules:
                 schedule_type="ondemand",
             )
 
-    def test_with_rrule_and_overrides(self):
+    def test_with_rrule_and_overrides_legacy_number(self):
+        # Shape legacy (numero) → normalizzata a lista di 1 componente.
         req = DosingScheduleCreateRequest(
             medication_id=uuid4(),
             schedule_type="scheduled",
@@ -459,8 +468,34 @@ class TestDosingSchedules:
             weekly_overrides={"1": 0.5, "5": 0},
             importance="vital",
         )
-        assert req.weekly_overrides["5"] == 0
+        assert req.weekly_overrides["5"][0].units == 0
+        assert req.weekly_overrides["1"][0].units == 0.5
         assert req.importance == "vital"
+
+    def test_weekly_overrides_multi_component(self):
+        # Nuova shape: un giorno con due dosaggi (1×5 mg + 1×2,5 mg).
+        req = DosingScheduleCreateRequest(
+            medication_id=uuid4(),
+            schedule_type="scheduled",
+            weekly_overrides={
+                "2": [
+                    {"units": 1, "strength_mg": 5, "strength_text": "5 mg"},
+                    {"units": 1, "strength_mg": 2.5, "strength_text": "2,5 mg"},
+                ]
+            },
+        )
+        comps = req.weekly_overrides["2"]
+        assert len(comps) == 2
+        assert comps[0].strength_mg == 5
+        assert comps[1].units == 1
+
+    def test_weekly_overrides_rejects_negative_units(self):
+        with pytest.raises(ValidationError):
+            DosingScheduleCreateRequest(
+                medication_id=uuid4(),
+                schedule_type="scheduled",
+                weekly_overrides={"2": [{"units": -1}]},
+            )
 
     def test_rejects_invalid_importance(self):
         with pytest.raises(ValidationError):

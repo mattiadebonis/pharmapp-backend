@@ -142,6 +142,12 @@ async def get_bootstrap_data(
             .in_("medication_id", medication_ids)
             .execute()
         )
+        packages_r = (
+            supabase.table("medication_packages")
+            .select("*")
+            .in_("medication_id", medication_ids)
+            .execute()
+        )
         prescriptions_r = (
             supabase.table("prescriptions")
             .select("*")
@@ -158,6 +164,7 @@ async def get_bootstrap_data(
     else:
         schedules_r = empty
         supplies_r = empty
+        packages_r = empty
         prescriptions_r = empty
         prescription_requests_r = empty
 
@@ -169,6 +176,10 @@ async def get_bootstrap_data(
     supplies_by_med: dict[str, dict] = {}
     for s in supplies_r.data:
         supplies_by_med[s["medication_id"]] = s
+
+    packages_by_med: dict[str, list] = {}
+    for pkg in packages_r.data:
+        packages_by_med.setdefault(pkg["medication_id"], []).append(pkg)
 
     prescriptions_by_med: dict[str, list] = {}
     for p in prescriptions_r.data:
@@ -182,6 +193,7 @@ async def get_bootstrap_data(
             **med,
             "schedules": schedules_by_med.get(mid, []),
             "supply": supplies_by_med.get(mid),
+            "packages": packages_by_med.get(mid, []),
             "prescriptions": prescriptions_by_med.get(mid, []),
         })
 

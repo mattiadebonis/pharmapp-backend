@@ -8,7 +8,6 @@ from pydantic import Field
 from app.schemas.base import PharmaBaseModel
 from app.schemas.routine_step import RoutineStepData, RoutineStepDTO
 
-
 # ---------------------------------------------------------------------------
 # Routine DTO
 # ---------------------------------------------------------------------------

@@ -15,10 +15,8 @@ from pathlib import Path
 SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-import pytest
 
 from parsers.aifa_package_parser import parse_denominazione_package  # noqa: E402
-
 
 # ─── Eutirox e altre tiroidi: parola "MICROGRAMMI" ───────────────────────────
 

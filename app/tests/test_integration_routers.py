@@ -201,6 +201,90 @@ class TestMedicationsRouter:
         assert sched_row["schedule_type"] == "scheduled"
         assert sched_row["pills_per_dose"] == 1.0
 
+    def test_create_with_embedded_packages(
+        self, authed_client: TestClient, fake_supabase: FakeSupabase
+    ):
+        """POST /v2/medications with `packages[]` must persist a
+        medication_packages row per dosaggio with medication_id wired."""
+        profile_id = str(uuid4())
+        fake_supabase.seed_select(
+            "profiles",
+            [
+                {
+                    "id": profile_id,
+                    "user_id": str(TEST_USER_ID),
+                    "profile_type": "own",
+                    "display_name": "Mattia",
+                    "created_at": _ts(),
+                    "updated_at": _ts(),
+                }
+            ],
+        )
+        payload = {
+            "profile_id": profile_id,
+            "name": "Eutirox",
+            "category": "farmaco",
+            "tracking_mode": "active",
+            "start_date": "2026-05-09",
+            "packages": [
+                {
+                    "strength_text": "10 mg",
+                    "strength_mg": 10.0,
+                    "units_per_box": 30,
+                    "box_count": 1,
+                    "current_units": 30.0,
+                    "refill_threshold_days": 7,
+                },
+                {
+                    "strength_text": "5 mg",
+                    "strength_mg": 5.0,
+                    "units_per_box": 28,
+                    "box_count": 1,
+                    "current_units": 28.0,
+                    "refill_threshold_days": 7,
+                },
+            ],
+        }
+        resp = authed_client.post("/v2/medications", json=payload)
+        assert resp.status_code in {200, 201}
+        package_inserts = fake_supabase.recorded_inserts.get("medication_packages", [])
+        assert len(package_inserts) >= 1
+        rows = package_inserts[-1]
+        if isinstance(rows, dict):
+            rows = [rows]
+        assert len(rows) == 2, rows
+        assert all("medication_id" in r for r in rows), rows
+        assert {r["strength_text"] for r in rows} == {"10 mg", "5 mg"}
+
+    def test_create_rejects_negative_package_units(
+        self, authed_client: TestClient, fake_supabase: FakeSupabase
+    ):
+        """units_per_box < 1 and current_units < 0 must be rejected by the
+        EmbeddedPackageCreate validators (422)."""
+        profile_id = str(uuid4())
+        fake_supabase.seed_select(
+            "profiles",
+            [
+                {
+                    "id": profile_id,
+                    "user_id": str(TEST_USER_ID),
+                    "profile_type": "own",
+                    "display_name": "Mattia",
+                    "created_at": _ts(),
+                    "updated_at": _ts(),
+                }
+            ],
+        )
+        payload = {
+            "profile_id": profile_id,
+            "name": "Eutirox",
+            "category": "farmaco",
+            "tracking_mode": "active",
+            "packages": [{"strength_text": "5 mg", "units_per_box": 0, "current_units": -1}],
+        }
+        resp = authed_client.post("/v2/medications", json=payload)
+        assert resp.status_code == 422
+
 
 # ---------------------------------------------------------------------------
 # Dose events
@@ -399,6 +483,25 @@ class TestPrescriptionRequestsRouter:
             json={"status": "purchased", "purchased_at": _ts()},
         )
         assert resp.status_code != 422
+
+    def test_create_persists_strength_text(self, authed_client: TestClient, fake_supabase: FakeSupabase):
+        """POST con strength_text → persiste la richiesta scoped al dosaggio."""
+        med_id = str(uuid4())
+        fake_supabase.seed_select(
+            "medications", [{"id": med_id, "profiles": {"user_id": str(TEST_USER_ID)}}]
+        )
+        resp = authed_client.post(
+            f"/v2/medications/{med_id}/prescription_requests",
+            json={"channel": "whatsapp", "strength_text": "10 mg"},
+        )
+        assert resp.status_code in {200, 201}
+        inserts = fake_supabase.recorded_inserts.get("prescription_requests", [])
+        assert inserts, "prescription request should be inserted"
+        row = inserts[-1]
+        if isinstance(row, list):
+            row = row[0]
+        assert row.get("strength_text") == "10 mg"
+        assert row.get("medication_id") == med_id
 
 
 # ---------------------------------------------------------------------------
