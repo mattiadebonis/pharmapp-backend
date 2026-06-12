@@ -59,23 +59,6 @@ async def get_owned_profile_ids(supabase: Client, user_id: UUID) -> list[str]:
     return [row["id"] for row in res.data]
 
 
-async def assert_medication_owned(
-    supabase: Client, user_id: UUID, medication_id: UUID
-) -> dict:
-    """Return the medication row if the user owns it via profile, else 404."""
-    res = (
-        supabase.table("medications")
-        .select("*, profiles!inner(user_id)")
-        .eq("id", str(medication_id))
-        .execute()
-    )
-    if not res.data or res.data[0]["profiles"]["user_id"] != str(user_id):
-        raise _not_found("Medication not found")
-    row = res.data[0]
-    row.pop("profiles", None)
-    return row
-
-
 async def log_activity(
     supabase: Client,
     user_id: UUID,

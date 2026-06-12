@@ -9,9 +9,3 @@ def get_supabase_client(url: str, key: str) -> Client:
     if _client is None:
         _client = create_client(url, key)
     return _client
-
-
-def reset_client() -> None:
-    """Reset the singleton client (for testing)."""
-    global _client
-    _client = None

@@ -1,10 +1,7 @@
-from app.schemas.activity_log import ActivityLogDTO
 from app.schemas.base import PharmaBaseModel
 from app.schemas.caregiver import CaregiverRelationDTO, PendingChangeDTO
-from app.schemas.device_token import DeviceTokenDTO
 from app.schemas.doctor import DoctorDTO
 from app.schemas.dose_event import DoseEventDTO
-from app.schemas.measurement import MeasurementDTO
 from app.schemas.medication import MedicationWithDetailsDTO
 from app.schemas.parameter import ParameterDTO
 from app.schemas.prescription_request import PrescriptionRequestDTO
@@ -15,7 +12,12 @@ from app.schemas.subscription import SubscriptionStateDTO
 
 
 class BootstrapResponse(PharmaBaseModel):
-    """All data needed for offline-first client sync in a single payload."""
+    """All data needed for offline-first client sync in a single payload.
+
+    NB: activity_logs / device_tokens / recent_measurements sono stati
+    rimossi dal payload: il client iOS non li ha mai decodificati.
+    Measurements on-demand via /v2/measurements; audit via /v2/me/access-log.
+    """
 
     profiles: list[ProfileDTO] = []
     medications: list[MedicationWithDetailsDTO] = []
@@ -28,6 +30,3 @@ class BootstrapResponse(PharmaBaseModel):
     prescription_requests: list[PrescriptionRequestDTO] = []
     routines: list[RoutineWithStepsDTO] = []
     parameters: list[ParameterDTO] = []
-    recent_measurements: list[MeasurementDTO] = []
-    activity_logs: list[ActivityLogDTO] = []
-    device_tokens: list[DeviceTokenDTO] = []

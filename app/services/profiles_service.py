@@ -48,23 +48,6 @@ async def get_profile(supabase: Client, user_id: UUID, profile_id: UUID) -> dict
     return result.data[0]
 
 
-async def get_own_profile(supabase: Client, user_id: UUID) -> dict:
-    """Get the user's own profile (profile_type='own')."""
-    result = (
-        supabase.table("profiles")
-        .select("*")
-        .eq("user_id", str(user_id))
-        .eq("profile_type", "own")
-        .execute()
-    )
-    if not result.data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": {"code": "not_found", "message": "Own profile not found"}},
-        )
-    return result.data[0]
-
-
 async def init_own_profile(
     supabase: Client,
     user_id: UUID,

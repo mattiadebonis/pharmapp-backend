@@ -4,8 +4,13 @@ from uuid import UUID
 
 from pydantic import field_validator
 
-from app.schemas.base import PharmaBaseModel
-from app.schemas.dosing_schedule import DosingScheduleDTO, WeeklyOverrides
+from app.schemas.base import PharmaBaseModel, TrackingMode
+from app.schemas.dosing_schedule import (
+    DoseFormat,
+    DosingScheduleDTO,
+    PostTaperingBehavior,
+    WeeklyOverrides,
+)
 from app.schemas.injection_site import InjectionSiteDTO
 from app.schemas.medication_package import EmbeddedPackageCreate, MedicationPackageDTO
 from app.schemas.prescription import PrescriptionDTO
@@ -50,13 +55,14 @@ class EmbeddedScheduleCreate(PharmaBaseModel):
     snooze_minutes: int | None = None
     notifications_silenced: bool = False
     weekly_overrides: WeeklyOverrides | None = None
-    format: Literal["compressa", "inalatore", "gocce", "altro"] | None = None
+    format: DoseFormat | None = None
     daily_limit: int | None = None
     weekly_alert_threshold: int | None = None
     cycle_pattern: Literal["weekly", "biweekly", "every_n"] | None = None
     cycle_weekdays: list[int] | None = None
+    cycle_total_weeks: int | None = None
     notify_day_before: bool = False
-    post_tapering_behavior: Literal["fine_terapia", "mantenimento"] | None = None
+    post_tapering_behavior: PostTaperingBehavior | None = None
     late_threshold_minutes: int | None = None
     strength_mg: float | None = None
     strength_text: str | None = None
@@ -73,7 +79,6 @@ class EmbeddedScheduleCreate(PharmaBaseModel):
 # Enums
 # ---------------------------------------------------------------------------
 MedicationCategory = Literal["farmaco", "otc", "integratore"]
-TrackingMode = Literal["passive", "active"]
 Criticality = Literal["none", "critical"]
 
 
@@ -95,13 +100,10 @@ class MedicationDTO(PharmaBaseModel):
     is_paused: bool = False
     is_archived: bool = False
     shared_with_caregiver: bool = False
-    image_url: str | None = None
     notes: str | None = None
-    catalog_snapshot: dict[str, Any] | None = None
     prescribing_doctor_id: UUID | None = None
     managed_by_routine_id: UUID | None = None
     injection_sites: list[InjectionSiteDTO] = []
-    anticipo_reminder: int | None = None
     # Today v2 — flag clinico per badge "Critico" sulla card temporale.
     # Default 'none'; 'critical' attiva badge rosso + variant scoring.
     criticality: Criticality | None = "none"
@@ -131,12 +133,9 @@ class MedicationCreateRequest(PharmaBaseModel):
     is_paused: bool = False
     is_archived: bool = False
     shared_with_caregiver: bool = False
-    image_url: str | None = None
     notes: str | None = None
-    catalog_snapshot: dict[str, Any] | None = None
     prescribing_doctor_id: UUID | None = None
     injection_sites: list[InjectionSiteDTO] | None = None
-    anticipo_reminder: int | None = None
     criticality: Criticality | None = "none"
     suspended_by_doctor_at: datetime | None = None
     # Optional embedded schedules — when present, the create endpoint
@@ -171,12 +170,9 @@ class MedicationUpdateRequest(PharmaBaseModel):
     is_paused: bool | None = None
     is_archived: bool | None = None
     shared_with_caregiver: bool | None = None
-    image_url: str | None = None
     notes: str | None = None
-    catalog_snapshot: dict[str, Any] | None = None
     prescribing_doctor_id: UUID | None = None
     injection_sites: list[InjectionSiteDTO] | None = None
-    anticipo_reminder: int | None = None
     criticality: Criticality | None = None
     suspended_by_doctor_at: datetime | None = None
 

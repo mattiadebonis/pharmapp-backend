@@ -13,7 +13,11 @@ ScheduleType = Literal["scheduled", "as_needed", "cycle", "tapering"]
 VariableSubtype = Literal["weekly", "tapering", "escalation"]
 Importance = Literal["vital", "essential", "standard"]
 NotificationLevel = Literal["normal", "alarm"]
-DoseFormat = Literal["compressa", "inalatore", "gocce", "altro"]
+# Allineato all'enum iOS DoseFormat (12 case): l'app invia il rawValue raw.
+DoseFormat = Literal[
+    "compressa", "capsula", "granuli", "gocce", "sciroppo", "iniettabile",
+    "inalatore", "cerotto", "collirio", "crema", "supposta", "altro",
+]
 CyclePattern = Literal["weekly", "biweekly", "every_n"]
 PostTaperingBehavior = Literal["fine_terapia", "mantenimento", "ripeti"]
 
@@ -91,6 +95,9 @@ class DosingScheduleDTO(PharmaBaseModel):
     weekly_alert_threshold: int | None = None
     cycle_pattern: CyclePattern | None = None
     cycle_weekdays: list[int] | None = None
+    # Durata totale del ciclo in settimane (es. rotazione siti iniezione).
+    # Pass-through: scritto e letto da iOS (cycleTotalWeeks).
+    cycle_total_weeks: int | None = None
     notify_day_before: bool = False
     post_tapering_behavior: PostTaperingBehavior | None = None
     # Soglia in minuti oltre due_at per classificare la dose come "ritardo".
@@ -131,6 +138,9 @@ class DosingScheduleCreateRequest(PharmaBaseModel):
     weekly_alert_threshold: int | None = None
     cycle_pattern: CyclePattern | None = None
     cycle_weekdays: list[int] | None = None
+    # Durata totale del ciclo in settimane (es. rotazione siti iniezione).
+    # Pass-through: scritto e letto da iOS (cycleTotalWeeks).
+    cycle_total_weeks: int | None = None
     notify_day_before: bool = False
     post_tapering_behavior: PostTaperingBehavior | None = None
     late_threshold_minutes: int | None = None
@@ -178,6 +188,7 @@ class DosingScheduleUpdateRequest(PharmaBaseModel):
     weekly_alert_threshold: int | None = None
     cycle_pattern: CyclePattern | None = None
     cycle_weekdays: list[int] | None = None
+    cycle_total_weeks: int | None = None
     notify_day_before: bool | None = None
     post_tapering_behavior: PostTaperingBehavior | None = None
     late_threshold_minutes: int | None = None

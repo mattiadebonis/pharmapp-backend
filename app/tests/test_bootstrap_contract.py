@@ -274,6 +274,8 @@ def test_bootstrap_snapshot_iOS_field_inventory(authed_client: TestClient, fake_
     the snapshot file was forgotten."""
     _seed_full(fake_supabase)
     payload = authed_client.get("/v2/bootstrap").json()
+    # activity_logs / device_tokens / recent_measurements rimossi dal
+    # payload: iOS non li ha mai decodificati (assenti da AppBootstrap).
     expected_keys = {
         "profiles",
         "medications",
@@ -286,9 +288,6 @@ def test_bootstrap_snapshot_iOS_field_inventory(authed_client: TestClient, fake_
         "prescription_requests",
         "routines",
         "parameters",
-        "recent_measurements",
-        "activity_logs",
-        "device_tokens",
     }
     missing = expected_keys - set(payload.keys())
     assert not missing, f"Bootstrap response missing keys: {missing}"

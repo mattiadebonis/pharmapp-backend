@@ -20,9 +20,12 @@ async def get_bootstrap_data(
     - doctors
     - settings
     - dose_events (recent, last 30 days)
-    - activity_logs (recent, last 500)
     - caregiver_relations (active)
-    - device_tokens
+
+    NB: activity_logs, device_tokens e recent_measurements NON sono inclusi:
+    il client iOS non li ha mai decodificati (assenti da AppBootstrap) e
+    serializzarli era solo payload sprecato. Le measurements si leggono
+    on-demand via /v2/measurements; l'audit trail via /v2/me/access-log.
 
     ``auto_create_profile`` is a backward-compat escape hatch. The bootstrap
     endpoint historically created a default "Io" profile whenever it found
@@ -213,19 +216,7 @@ async def get_bootstrap_data(
         dose_events_r = empty
 
     # ---------------------------------------------------------------
-    # 6. Activity logs (recent)
-    # ---------------------------------------------------------------
-    activity_logs_r = (
-        supabase.table("activity_logs")
-        .select("*")
-        .eq("user_id", uid)
-        .order("created_at", desc=True)
-        .limit(500)
-        .execute()
-    )
-
-    # ---------------------------------------------------------------
-    # 7. Caregiver relations (active + pending)
+    # 6. Caregiver relations (active + pending)
     # ---------------------------------------------------------------
     caregiver_patient_r = (
         supabase.table("caregiver_relations")
@@ -250,7 +241,7 @@ async def get_bootstrap_data(
             caregiver_relations.append(row)
 
     # ---------------------------------------------------------------
-    # 8. Pending caregiver confirmations/changes for patient
+    # 7. Pending caregiver confirmations/changes for patient
     # ---------------------------------------------------------------
     caregiver_relation_ids_for_patient = [
         row["id"]
@@ -270,17 +261,7 @@ async def get_bootstrap_data(
         pending_changes_r = empty
 
     # ---------------------------------------------------------------
-    # 9. Device tokens
-    # ---------------------------------------------------------------
-    device_tokens_r = (
-        supabase.table("device_tokens")
-        .select("*")
-        .eq("user_id", uid)
-        .execute()
-    )
-
-    # ---------------------------------------------------------------
-    # 10. Routines (+ inline steps in DTO shape)
+    # 8. Routines (+ inline steps in DTO shape)
     # ---------------------------------------------------------------
     from app.schemas.routine_step import RoutineStepDTO  # local import: avoids circular at module load
 
@@ -319,7 +300,7 @@ async def get_bootstrap_data(
         routines_with_steps = []
 
     # ---------------------------------------------------------------
-    # 11. Parameters (predefined + custom) + recent measurements
+    # 9. Parameters (predefined + custom)
     # ---------------------------------------------------------------
     from app.services.parameters_service import PREDEFINED_PARAMETERS, _predefined_dto
 
@@ -337,21 +318,8 @@ async def get_bootstrap_data(
         for row in custom_params_r.data:
             parameters_payload.append({**row, "is_predefined": False})
 
-    if profile_ids:
-        measurements_r = (
-            supabase.table("measurements")
-            .select("*")
-            .in_("profile_id", profile_ids)
-            .order("recorded_at", desc=True)
-            .limit(500)
-            .execute()
-        )
-        recent_measurements = measurements_r.data
-    else:
-        recent_measurements = []
-
     # ---------------------------------------------------------------
-    # 12. Subscription state (Apple StoreKit-derived entitlement)
+    # 10. Subscription state (Apple StoreKit-derived entitlement)
     # ---------------------------------------------------------------
     from app.services.store_service import get_subscription_state
 
@@ -367,12 +335,9 @@ async def get_bootstrap_data(
         "doctors": doctors,
         "medications": medications_with_details,
         "dose_events": dose_events_r.data,
-        "activity_logs": activity_logs_r.data,
         "caregiver_relations": caregiver_relations,
         "pending_changes": pending_changes_r.data,
-        "device_tokens": device_tokens_r.data,
         "prescription_requests": prescription_requests_r.data,
         "routines": routines_with_steps,
         "parameters": parameters_payload,
-        "recent_measurements": recent_measurements,
     }

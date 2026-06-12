@@ -75,26 +75,6 @@ async def remove_token(
         )
 
 
-async def remove_token_by_id(
-    supabase: Client,
-    user_id: UUID,
-    token_id: UUID,
-) -> None:
-    """Remove a device token by its ID."""
-    result = (
-        supabase.table("device_tokens")
-        .delete()
-        .eq("id", str(token_id))
-        .eq("user_id", str(user_id))
-        .execute()
-    )
-    if not result.data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": {"code": "not_found", "message": "Device token not found"}},
-        )
-
-
 async def list_tokens(supabase: Client, user_id: UUID) -> list[dict]:
     """List all device tokens for the user."""
     result = (

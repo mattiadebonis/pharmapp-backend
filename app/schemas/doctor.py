@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 from uuid import UUID
 
 from app.schemas.base import PharmaBaseModel
@@ -21,13 +21,11 @@ class DoctorDTO(PharmaBaseModel):
     phone: str | None = None
     whatsapp_phone: str | None = None
     address: str | None = None
-    schedule_json: dict[str, Any] | None = None
     office_hours: str | None = None
     call_preferences: str | None = None
     secretary_name: str | None = None
     secretary_email: str | None = None
     secretary_phone: str | None = None
-    secretary_schedule_json: dict[str, Any] | None = None
     secretary_office_hours: str | None = None
     prescription_message_template: str | None = None
     whatsapp_message_template: str | None = None
@@ -50,13 +48,11 @@ class DoctorCreateRequest(PharmaBaseModel):
     phone: str | None = None
     whatsapp_phone: str | None = None
     address: str | None = None
-    schedule_json: dict[str, Any] | None = None
     office_hours: str | None = None
     call_preferences: str | None = None
     secretary_name: str | None = None
     secretary_email: str | None = None
     secretary_phone: str | None = None
-    secretary_schedule_json: dict[str, Any] | None = None
     secretary_office_hours: str | None = None
     prescription_message_template: str | None = None
     whatsapp_message_template: str | None = None
@@ -76,13 +72,11 @@ class DoctorUpdateRequest(PharmaBaseModel):
     phone: str | None = None
     whatsapp_phone: str | None = None
     address: str | None = None
-    schedule_json: dict[str, Any] | None = None
     office_hours: str | None = None
     call_preferences: str | None = None
     secretary_name: str | None = None
     secretary_email: str | None = None
     secretary_phone: str | None = None
-    secretary_schedule_json: dict[str, Any] | None = None
     secretary_office_hours: str | None = None
     prescription_message_template: str | None = None
     whatsapp_message_template: str | None = None

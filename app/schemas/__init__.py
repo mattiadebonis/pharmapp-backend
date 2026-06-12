@@ -7,9 +7,6 @@ from app.schemas.activity_log import (
     ActivityLogDTO,
 )
 from app.schemas.base import (
-    ErrorDetail,
-    ErrorResponse,
-    PaginatedResponse,
     PharmaBaseModel,
 )
 from app.schemas.bootstrap import (
@@ -75,9 +72,6 @@ from app.schemas.supply import (
 __all__ = [
     # base
     "PharmaBaseModel",
-    "ErrorDetail",
-    "ErrorResponse",
-    "PaginatedResponse",
     # profile
     "ProfileDTO",
     "ProfileCreateRequest",

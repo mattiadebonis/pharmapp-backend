@@ -84,7 +84,6 @@ class ProfileDTO(PharmaBaseModel):
     birth_date: date | None = None
     color: str | None = None
     emoji: str | None = None
-    parent_user_id: UUID | None = None
     relation_label: str | None = None
     connection_status: ConnectionStatus | None = None
     # Today v2 — timestamp di pausa terapia globale. Quando != null la
@@ -110,7 +109,6 @@ class ProfileCreateRequest(PharmaBaseModel):
     birth_date: date | None = None
     color: str | None = None
     emoji: str | None = None
-    parent_user_id: UUID | None = None
     relation_label: str | None = None
     connection_status: ConnectionStatus | None = None
     therapy_paused_at: datetime | None = None
@@ -127,7 +125,6 @@ class ProfileUpdateRequest(PharmaBaseModel):
     birth_date: date | None = None
     color: str | None = None
     emoji: str | None = None
-    parent_user_id: UUID | None = None
     relation_label: str | None = None
     connection_status: ConnectionStatus | None = None
     therapy_paused_at: datetime | None = None

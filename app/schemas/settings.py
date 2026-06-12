@@ -1,13 +1,7 @@
 from datetime import datetime
-from typing import Literal
 from uuid import UUID
 
-from app.schemas.base import PharmaBaseModel
-
-# ---------------------------------------------------------------------------
-# Enums
-# ---------------------------------------------------------------------------
-TrackingMode = Literal["passive", "active"]
+from app.schemas.base import PharmaBaseModel, TrackingMode
 
 
 # ---------------------------------------------------------------------------

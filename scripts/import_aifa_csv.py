@@ -407,23 +407,7 @@ def run_import(
             print(f"  ingredienti: {done}/{len(ingredient_rows)}")
         print(f"  Ingredienti completati in {time.time() - t3:.1f}s")
 
-    # 4. Refresh materialized view catalog_it_variants (migration 033)
-    # La view aggrega i packages per (cod_farmaco × strength × forma).
-    # Va aggiornata dopo ogni import per restare allineata. Refresh
-    # CONCURRENTLY → nessun lock in lettura per i client (richiede
-    # l'unique index su variant_key, già creato in migration 033).
-    print("\nRefresh view materializzata catalog_it_variants...")
-    t4 = time.time()
-    try:
-        supabase.rpc("refresh_catalog_variants", {}).execute()
-        print(f"  Varianti refreshate in {time.time() - t4:.1f}s")
-    except Exception as e:
-        # Non bloccante: l'import dei packages è già committato.
-        # Il refresh può essere rieseguito manualmente con:
-        #   SELECT refresh_catalog_variants();
-        print(f"  WARN: refresh varianti fallito ({e!r}). Rilancia manualmente.")
-
-    # 5. Refresh view materializzata catalog_it_packages_audit (migration 036)
+    # 4. Refresh view materializzata catalog_it_packages_audit (migration 036)
     # Audit di qualità del parsing: 1 riga per package con quality_code
     # categorico. Consente di vedere subito dopo l'import quanti packages
     # hanno parsing OK e quanti restano bug. Refresh CONCURRENTLY.
@@ -440,7 +424,7 @@ def run_import(
         # oppure (più veloce): SELECT refresh_catalog_audit();
         print(f"  WARN: refresh audit fallito ({e!r}). Rilancia manualmente.")
 
-    # 6. Report di qualità opzionale (--with-audit-report)
+    # 5. Report di qualità opzionale (--with-audit-report)
     if globals().get("_with_audit_report"):
         print("\nReport audit qualità parsing:")
         try:

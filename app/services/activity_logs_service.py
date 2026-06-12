@@ -57,20 +57,3 @@ async def list_logs(
     result = query.execute()
     total = result.count or 0
     return result.data, total
-
-
-async def get_log(supabase: Client, user_id: UUID, log_id: UUID) -> dict:
-    """Get a single activity log entry, verifying ownership."""
-    result = (
-        supabase.table("activity_logs")
-        .select("*")
-        .eq("id", str(log_id))
-        .eq("user_id", str(user_id))
-        .execute()
-    )
-    if not result.data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": {"code": "not_found", "message": "Activity log not found"}},
-        )
-    return result.data[0]

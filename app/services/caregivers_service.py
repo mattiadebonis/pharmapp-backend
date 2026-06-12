@@ -229,7 +229,19 @@ async def revoke_relation(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"error": {"code": "forbidden", "message": "Access denied"}},
         )
-    result = supabase.table("caregiver_relations").update({"status": "revoked"}).eq("id", str(relation_id)).execute()
+    # revoked_at va popolato insieme allo status: la RLS policy
+    # caregiver_relations_select (migration 023) filtra su
+    # `revoked_at IS NULL` — senza questo update la policy non
+    # escluderebbe mai le relazioni revocate a livello PostgREST.
+    result = (
+        supabase.table("caregiver_relations")
+        .update({
+            "status": "revoked",
+            "revoked_at": datetime.now(timezone.utc).isoformat(),
+        })
+        .eq("id", str(relation_id))
+        .execute()
+    )
     return result.data[0]
 
 
