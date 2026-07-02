@@ -2,6 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -138,7 +139,10 @@ def create_app() -> FastAPI:
             "message": "Request validation failed",
         }
         if not is_production:
-            payload["details"] = exc.errors()
+            # jsonable_encoder: i ctx degli errori pydantic v2 contengono
+            # l'oggetto ValueError sollevato dai field_validator custom —
+            # senza encoder la JSONResponse esplode con un 500.
+            payload["details"] = jsonable_encoder(exc.errors())
         else:
             # In production, never log raw exc.errors(): each entry contains
             # the `input` field with the user-supplied value, which may be PHI

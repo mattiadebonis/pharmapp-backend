@@ -6,6 +6,10 @@ from app.schemas.base import PharmaBaseModel
 
 CommunicationChannel = Literal["telefono", "whatsapp", "email"]
 
+# Canale principale mostrato sulla card Rifornimento iOS. Allineato all'enum
+# `PrescriptionRequestChannel` del client (raw values).
+PrincipalChannel = Literal["whatsapp", "mail", "copy", "chiama"]
+
 
 # ---------------------------------------------------------------------------
 # DTO – full representation returned by the API
@@ -30,6 +34,7 @@ class DoctorDTO(PharmaBaseModel):
     prescription_message_template: str | None = None
     whatsapp_message_template: str | None = None
     preferenza_canale: CommunicationChannel | None = None
+    principal_channel: PrincipalChannel | None = None
     profile_ids: list[UUID] = []
     created_at: datetime
     updated_at: datetime
@@ -57,6 +62,7 @@ class DoctorCreateRequest(PharmaBaseModel):
     prescription_message_template: str | None = None
     whatsapp_message_template: str | None = None
     preferenza_canale: CommunicationChannel | None = None
+    principal_channel: PrincipalChannel | None = None
     profile_ids: list[UUID] = []
 
 
@@ -81,4 +87,5 @@ class DoctorUpdateRequest(PharmaBaseModel):
     prescription_message_template: str | None = None
     whatsapp_message_template: str | None = None
     preferenza_canale: CommunicationChannel | None = None
+    principal_channel: PrincipalChannel | None = None
     profile_ids: list[UUID] = []

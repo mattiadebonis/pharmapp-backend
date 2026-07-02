@@ -99,6 +99,7 @@ EXPECTED_ENDPOINTS: list[tuple[str, str]] = [
     # Dose events
     ("GET", "/v2/dose-events"),
     ("POST", "/v2/dose-events"),
+    ("POST", "/v2/dose-events/batch"),
     ("GET", "/v2/dose-events/{event_id}"),
     ("PUT", "/v2/dose-events/{event_id}"),
     ("DELETE", "/v2/dose-events/{event_id}"),

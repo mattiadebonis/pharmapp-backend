@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
+from pydantic import Field, field_validator
+
 from app.schemas.base import PharmaBaseModel
 
 # ---------------------------------------------------------------------------
@@ -51,6 +53,27 @@ class DoseEventCreateRequest(PharmaBaseModel):
     note: str | None = None
     pills_taken: float | None = None
     injection_site: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Batch create request — usato dal catch-up iOS (dosi passive arretrate).
+# Ogni evento DEVE avere `id`: il client genera id deterministici per slot,
+# così il replay offline e il doppio device convergono sullo stesso upsert.
+# ---------------------------------------------------------------------------
+class DoseEventBatchCreateRequest(PharmaBaseModel):
+    events: list[DoseEventCreateRequest] = Field(..., min_length=1, max_length=200)
+
+    @field_validator("events")
+    @classmethod
+    def _all_events_have_id(cls, v: list[DoseEventCreateRequest]) -> list[DoseEventCreateRequest]:
+        if any(event.id is None for event in v):
+            raise ValueError("every event in a batch must carry a client-generated id")
+        return v
+
+
+class DoseEventBatchResponse(PharmaBaseModel):
+    events: list[DoseEventDTO]
+    upserted: int
 
 
 # ---------------------------------------------------------------------------

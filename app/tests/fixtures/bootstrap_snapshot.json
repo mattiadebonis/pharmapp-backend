@@ -124,6 +124,7 @@
         "refill_threshold_days": 7,
         "updated_at": "2026-05-01T08:00:00Z"
       },
+      "supply_reconciled_at": null,
       "suspended_by_doctor_at": null,
       "tracking_mode": "active",
       "updated_at": "2026-05-01T08:00:00Z"

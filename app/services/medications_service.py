@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -100,10 +101,26 @@ async def create_medication(supabase: Client, user_id: UUID, data) -> dict:
     embedded_packages = payload.pop("packages", None) or []
     # Upsert when client provides id (offline retry, idempotent confirm
     # replay). Without id, plain insert as before.
+    #
+    # `supply_reconciled_at` parte da now() SOLO sull'insert: un farmaco
+    # nuovo non ha arretrati da consumare. Sul ramo upsert il campo non
+    # viene toccato — un replay offline tardivo non deve resettare un
+    # watermark che il client ha già fatto avanzare (riga NULL → ci pensa
+    # il client a inizializzarlo al primo reconcile).
     if payload.get("id"):
         result = supabase.table("medications").upsert(payload, on_conflict="id").execute()
     else:
-        result = supabase.table("medications").insert(payload).execute()
+        payload["supply_reconciled_at"] = datetime.now(timezone.utc).isoformat()
+        try:
+            result = supabase.table("medications").insert(payload).execute()
+        except Exception as exc:
+            # Finestra di deploy: codice nuovo, migrazione 050 non ancora
+            # applicata. Ritenta senza il watermark (il client lo
+            # inizializza da sé al primo reconcile).
+            if "supply_reconciled_at" not in str(exc):
+                raise
+            payload.pop("supply_reconciled_at", None)
+            result = supabase.table("medications").insert(payload).execute()
     medication = result.data[0]
     med_id = medication["id"]
     if embedded_schedules:

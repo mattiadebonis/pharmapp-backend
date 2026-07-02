@@ -111,6 +111,11 @@ class MedicationDTO(PharmaBaseModel):
     # `is_paused` (pausa utente). Quando != null la dose non entra in
     # timeline e contribuisce al banner "Sospesa dal medico · N farmaci".
     suspended_by_doctor_at: datetime | None = None
+    # Watermark riconciliazione scorte: ogni slot di terapia con
+    # due_at <= supply_reconciled_at è già stato regolato sulle confezioni.
+    # Lo avanza il client iOS (SupplyEngine.reconcile); il server lo
+    # inizializza a now() alla creazione del farmaco.
+    supply_reconciled_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -175,6 +180,7 @@ class MedicationUpdateRequest(PharmaBaseModel):
     injection_sites: list[InjectionSiteDTO] | None = None
     criticality: Criticality | None = None
     suspended_by_doctor_at: datetime | None = None
+    supply_reconciled_at: datetime | None = None
 
 
 # ---------------------------------------------------------------------------
