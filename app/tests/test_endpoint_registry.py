@@ -46,10 +46,7 @@ EXPECTED_ENDPOINTS: list[tuple[str, str]] = [
     ("GET", "/v2/catalog/products/{country}/{product_id}"),
     ("GET", "/v2/catalog/packages/{country}/{package_id}"),
     # Profiles
-    ("GET", "/v2/profiles"),
-    ("POST", "/v2/profiles"),
     ("POST", "/v2/profiles/init"),
-    ("GET", "/v2/profiles/{profile_id}"),
     ("PUT", "/v2/profiles/{profile_id}"),
     ("DELETE", "/v2/profiles/{profile_id}"),
     ("PUT", "/v2/profiles/{profile_id}/disconnect"),
@@ -61,72 +58,41 @@ EXPECTED_ENDPOINTS: list[tuple[str, str]] = [
     ("GET", "/v2/profiles/{profile_id}/therapy-data"),
     ("GET", "/v2/profiles/{profile_id}/therapy-data/report.pdf"),
     # Doctors
-    ("GET", "/v2/doctors"),
     ("POST", "/v2/doctors"),
-    ("GET", "/v2/doctors/{doctor_id}"),
     ("PUT", "/v2/doctors/{doctor_id}"),
     ("DELETE", "/v2/doctors/{doctor_id}"),
     # Medications
-    ("GET", "/v2/medications"),
     ("POST", "/v2/medications"),
-    ("GET", "/v2/medications/{medication_id}"),
     ("PUT", "/v2/medications/{medication_id}"),
     ("DELETE", "/v2/medications/{medication_id}"),
-    # Dosing schedules
-    ("GET", "/v2/medications/{medication_id}/schedules"),
-    ("POST", "/v2/medications/{medication_id}/schedules"),
-    ("GET", "/v2/medications/{medication_id}/schedules/{schedule_id}"),
+    # Dosing schedules (create nested in POST /v2/medications)
     ("PUT", "/v2/medications/{medication_id}/schedules/{schedule_id}"),
-    ("DELETE", "/v2/medications/{medication_id}/schedules/{schedule_id}"),
     # Supplies
-    ("GET", "/v2/medications/{medication_id}/supply"),
     ("PUT", "/v2/medications/{medication_id}/supply"),
-    ("DELETE", "/v2/medications/{medication_id}/supply"),
     # Packages (scorte per dosaggio)
-    ("GET", "/v2/medications/{medication_id}/packages"),
     ("PUT", "/v2/medications/{medication_id}/packages"),
     # Prescriptions
     ("GET", "/v2/medications/{medication_id}/prescriptions"),
     ("POST", "/v2/medications/{medication_id}/prescriptions"),
-    ("GET", "/v2/medications/{medication_id}/prescriptions/{prescription_id}"),
     ("PUT", "/v2/medications/{medication_id}/prescriptions/{prescription_id}"),
-    ("DELETE", "/v2/medications/{medication_id}/prescriptions/{prescription_id}"),
     # Prescription requests
-    ("GET", "/v2/medications/{medication_id}/prescription_requests"),
     ("POST", "/v2/medications/{medication_id}/prescription_requests"),
-    ("GET", "/v2/medications/{medication_id}/prescription_requests/{request_id}"),
     ("PATCH", "/v2/medications/{medication_id}/prescription_requests/{request_id}"),
-    # Dose events
-    ("GET", "/v2/dose-events"),
+    # Dose events (solo scrittura: lettura via bootstrap/therapy-data)
     ("POST", "/v2/dose-events"),
     ("POST", "/v2/dose-events/batch"),
-    ("GET", "/v2/dose-events/{event_id}"),
-    ("PUT", "/v2/dose-events/{event_id}"),
-    ("DELETE", "/v2/dose-events/{event_id}"),
-    # Routines
+    # Routines (PUT/DELETE/duplicate: roadmap editor, non ancora chiamati)
     ("GET", "/v2/routines"),
     ("POST", "/v2/routines"),
     ("GET", "/v2/routines/{routine_id}"),
     ("PUT", "/v2/routines/{routine_id}"),
     ("DELETE", "/v2/routines/{routine_id}"),
     ("POST", "/v2/routines/{routine_id}/duplicate"),
-    # Routine steps
-    ("POST", "/v2/routines/{routine_id}/steps"),
-    ("PUT", "/v2/routines/{routine_id}/steps/{step_id}"),
-    ("DELETE", "/v2/routines/{routine_id}/steps/{step_id}"),
-    ("PATCH", "/v2/routines/{routine_id}/steps/reorder"),
     # Parameters
     ("GET", "/v2/parameters?profile_id=" + _UID),
     ("POST", "/v2/parameters"),
-    ("GET", "/v2/parameters/{parameter_id}"),
-    ("PATCH", "/v2/parameters/{parameter_id}"),
-    ("DELETE", "/v2/parameters/{parameter_id}"),
-    # Measurements
-    ("GET", "/v2/measurements"),
+    # Measurements (solo scrittura)
     ("POST", "/v2/measurements"),
-    ("GET", "/v2/measurements/{measurement_id}"),
-    ("PATCH", "/v2/measurements/{measurement_id}"),
-    ("DELETE", "/v2/measurements/{measurement_id}"),
     # Settings
     ("GET", "/v2/settings"),
     ("PUT", "/v2/settings"),
@@ -134,19 +100,13 @@ EXPECTED_ENDPOINTS: list[tuple[str, str]] = [
     ("GET", "/v2/caregivers/relations"),
     ("POST", "/v2/caregivers/invite"),
     ("POST", "/v2/caregivers/accept"),
-    ("GET", "/v2/caregivers/confirmations"),
     ("PUT", "/v2/caregivers/relations/{relation_id}/confirm"),
     ("PUT", "/v2/caregivers/relations/{relation_id}/reject"),
     ("PUT", "/v2/caregivers/relations/{relation_id}/revoke"),
     ("GET", "/v2/caregivers/pending-changes"),
-    ("POST", "/v2/caregivers/relations/{relation_id}/changes"),
     ("PUT", "/v2/caregivers/pending-changes/{change_id}/approve"),
     ("PUT", "/v2/caregivers/pending-changes/{change_id}/reject"),
-    # Activity logs
-    ("GET", "/v2/activity-logs"),
-    ("POST", "/v2/activity-logs"),
     # Device tokens
-    ("GET", "/v2/device-tokens"),
     ("POST", "/v2/device-tokens"),
     ("DELETE", "/v2/device-tokens"),
     # DSAR

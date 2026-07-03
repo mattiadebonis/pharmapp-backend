@@ -73,14 +73,3 @@ async def remove_token(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": {"code": "not_found", "message": "Device token not found"}},
         )
-
-
-async def list_tokens(supabase: Client, user_id: UUID) -> list[dict]:
-    """List all device tokens for the user."""
-    result = (
-        supabase.table("device_tokens")
-        .select("*")
-        .eq("user_id", str(user_id))
-        .execute()
-    )
-    return result.data

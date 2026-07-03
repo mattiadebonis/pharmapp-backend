@@ -13,16 +13,13 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.activity_log import ActivityLogCreateRequest
 from app.schemas.caregiver import (
     CaregiverAcceptRequest,
     CaregiverInviteRequest,
-    PendingChangeCreateRequest,
 )
 from app.schemas.device_token import DeviceTokenCreateRequest
 from app.schemas.doctor import DoctorCreateRequest, DoctorUpdateRequest
-from app.schemas.dose_event import DoseEventCreateRequest, DoseEventUpdateRequest
-from app.schemas.dosing_schedule import DosingScheduleCreateRequest
+from app.schemas.dose_event import DoseEventCreateRequest
 from app.schemas.medication import (
     MedicationCreateRequest,
     MedicationDTO,
@@ -39,7 +36,6 @@ from app.schemas.prescription_request import (
 from app.schemas.profile import (
     AnchorSlotDTO,
     ProfileAnchorDTO,
-    ProfileCreateRequest,
     ProfileDTO,
     ProfileUpdateRequest,
 )
@@ -122,11 +118,6 @@ class TestDoseEvents:
         )
         assert req.injection_site == "site-default-addome-sx"
 
-    def test_update_request_can_clear_status(self):
-        req = DoseEventUpdateRequest(status="snoozed", snooze_count=3, injection_site="x")
-        assert req.status == "snoozed"
-        assert req.injection_site == "x"
-
 
 # ---------------------------------------------------------------------------
 # Profiles + connection_status
@@ -134,22 +125,6 @@ class TestDoseEvents:
 
 
 class TestProfiles:
-    def test_create_minimal(self):
-        req = ProfileCreateRequest(profile_type="own", display_name="Mattia")
-        assert req.connection_status is None
-
-    def test_rejects_invalid_profile_type(self):
-        with pytest.raises(ValidationError):
-            ProfileCreateRequest(profile_type="visitor", display_name="X")
-
-    def test_rejects_invalid_connection_status(self):
-        with pytest.raises(ValidationError):
-            ProfileCreateRequest(
-                profile_type="assisted",
-                display_name="Maria",
-                connection_status="frozen",
-            )
-
     def test_dto_with_managed_fields(self):
         now = datetime.now(timezone.utc)
         dto = ProfileDTO(
@@ -243,19 +218,6 @@ class TestCaregivers:
     def test_accept_accepts_dashed_code(self):
         req = CaregiverAcceptRequest(invite_code="ABC-123")
         assert req.invite_code == "ABC-123"
-
-    def test_pending_change_requires_change_type(self):
-        with pytest.raises(ValidationError):
-            PendingChangeCreateRequest(caregiver_relation_id=uuid4())
-
-    def test_pending_change_with_payload(self):
-        req = PendingChangeCreateRequest(
-            caregiver_relation_id=uuid4(),
-            change_type="routine_create",
-            payload={"name": "Mattina"},
-            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
-        )
-        assert req.change_type == "routine_create"
 
 
 # ---------------------------------------------------------------------------
@@ -418,92 +380,6 @@ class TestSettings:
         )
         assert req.grace_minutes == 60
         assert req.anonymous_notifications is True
-
-
-# ---------------------------------------------------------------------------
-# Activity logs
-# ---------------------------------------------------------------------------
-
-
-class TestActivityLogs:
-    def test_requires_action_type(self):
-        with pytest.raises(ValidationError):
-            ActivityLogCreateRequest()
-
-    def test_with_optional_fields(self):
-        req = ActivityLogCreateRequest(
-            action_type="dose_taken",
-            details={"medication_name": "Tachipirina"},
-            source="ios",
-        )
-        assert req.action_type == "dose_taken"
-
-
-# ---------------------------------------------------------------------------
-# Dosing schedules
-# ---------------------------------------------------------------------------
-
-
-class TestDosingSchedules:
-    def test_create_minimal(self):
-        req = DosingScheduleCreateRequest(
-            medication_id=uuid4(),
-            schedule_type="scheduled",
-        )
-        assert req.is_active is True
-
-    def test_rejects_invalid_schedule_type(self):
-        with pytest.raises(ValidationError):
-            DosingScheduleCreateRequest(
-                medication_id=uuid4(),
-                schedule_type="ondemand",
-            )
-
-    def test_with_rrule_and_overrides_legacy_number(self):
-        # Shape legacy (numero) → normalizzata a lista di 1 componente.
-        req = DosingScheduleCreateRequest(
-            medication_id=uuid4(),
-            schedule_type="scheduled",
-            rrule="FREQ=WEEKLY;BYDAY=MO,WE,FR",
-            weekly_overrides={"1": 0.5, "5": 0},
-            importance="vital",
-        )
-        assert req.weekly_overrides["5"][0].units == 0
-        assert req.weekly_overrides["1"][0].units == 0.5
-        assert req.importance == "vital"
-
-    def test_weekly_overrides_multi_component(self):
-        # Nuova shape: un giorno con due dosaggi (1×5 mg + 1×2,5 mg).
-        req = DosingScheduleCreateRequest(
-            medication_id=uuid4(),
-            schedule_type="scheduled",
-            weekly_overrides={
-                "2": [
-                    {"units": 1, "strength_mg": 5, "strength_text": "5 mg"},
-                    {"units": 1, "strength_mg": 2.5, "strength_text": "2,5 mg"},
-                ]
-            },
-        )
-        comps = req.weekly_overrides["2"]
-        assert len(comps) == 2
-        assert comps[0].strength_mg == 5
-        assert comps[1].units == 1
-
-    def test_weekly_overrides_rejects_negative_units(self):
-        with pytest.raises(ValidationError):
-            DosingScheduleCreateRequest(
-                medication_id=uuid4(),
-                schedule_type="scheduled",
-                weekly_overrides={"2": [{"units": -1}]},
-            )
-
-    def test_rejects_invalid_importance(self):
-        with pytest.raises(ValidationError):
-            DosingScheduleCreateRequest(
-                medication_id=uuid4(),
-                schedule_type="scheduled",
-                importance="critical",
-            )
 
 
 # ---------------------------------------------------------------------------

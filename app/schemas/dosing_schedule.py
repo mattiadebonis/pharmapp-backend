@@ -112,57 +112,6 @@ class DosingScheduleDTO(PharmaBaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Create request
-# ---------------------------------------------------------------------------
-class DosingScheduleCreateRequest(PharmaBaseModel):
-    medication_id: UUID
-    schedule_type: ScheduleType
-    times: list[dict[str, Any]] | None = None
-    pills_per_dose: float | None = None
-    max_per_day: int | None = None
-    min_interval_hours: float | None = None
-    condition: str | None = None
-    cycle_days: int | None = None
-    cycle_start_date: date | None = None
-    tapering_steps: list[dict[str, Any]] | None = None
-    variable_subtype: VariableSubtype | None = None
-    rrule: str | None = None
-    is_active: bool = True
-    importance: Importance = "standard"
-    notification_level: NotificationLevel = "alarm"
-    snooze_minutes: int | None = None
-    notifications_silenced: bool = False
-    weekly_overrides: WeeklyOverrides | None = None
-    format: DoseFormat | None = None
-    daily_limit: int | None = None
-    weekly_alert_threshold: int | None = None
-    cycle_pattern: CyclePattern | None = None
-    cycle_weekdays: list[int] | None = None
-    # Durata totale del ciclo in settimane (es. rotazione siti iniezione).
-    # Pass-through: scritto e letto da iOS (cycleTotalWeeks).
-    cycle_total_weeks: int | None = None
-    notify_day_before: bool = False
-    post_tapering_behavior: PostTaperingBehavior | None = None
-    late_threshold_minutes: int | None = None
-    strength_mg: float | None = None
-    strength_text: str | None = None
-
-    @field_validator("strength_mg")
-    @classmethod
-    def _strength_mg_non_negative(cls, v: float | None) -> float | None:
-        if v is not None and v < 0:
-            raise ValueError("strength_mg must be >= 0")
-        return v
-
-    @field_validator("pills_per_dose")
-    @classmethod
-    def _pills_per_dose_positive(cls, v: float | None) -> float | None:
-        if v is not None and v <= 0:
-            raise ValueError("pills_per_dose must be > 0")
-        return v
-
-
-# ---------------------------------------------------------------------------
 # Update request
 # ---------------------------------------------------------------------------
 class DosingScheduleUpdateRequest(PharmaBaseModel):

@@ -35,37 +35,6 @@ def _ts() -> str:
 
 
 class TestProfilesRouter:
-    def test_list_returns_200_when_authed(self, authed_client: TestClient, fake_supabase: FakeSupabase):
-        fake_supabase.seed_select(
-            "profiles",
-            [
-                {
-                    "id": str(uuid4()),
-                    "user_id": str(TEST_USER_ID),
-                    "profile_type": "own",
-                    "display_name": "Mattia",
-                    "created_at": _ts(),
-                    "updated_at": _ts(),
-                }
-            ],
-        )
-        resp = authed_client.get("/v2/profiles")
-        assert resp.status_code == 200
-        assert len(resp.json()) == 1
-
-    def test_create_persists_payload(self, authed_client: TestClient, fake_supabase: FakeSupabase):
-        resp = authed_client.post(
-            "/v2/profiles",
-            json={"profile_type": "assisted", "display_name": "Maria", "relation_label": "madre"},
-        )
-        assert resp.status_code == 201
-        body = resp.json()
-        assert body["display_name"] == "Maria"
-        assert body["relation_label"] == "madre"
-        # The service inserted into "profiles"
-        insert_calls = [c for c in fake_supabase.calls if c._table == "profiles" and c._operation == "insert"]
-        assert insert_calls, "no insert recorded"
-
     def test_disconnect_returns_profile(self, authed_client: TestClient, fake_supabase: FakeSupabase):
         # Profile owned by another user — current user is the caregiver
         other_user = str(uuid4())
@@ -112,12 +81,6 @@ class TestProfilesRouter:
 
 
 class TestMedicationsRouter:
-    def test_list_empty(self, authed_client: TestClient, fake_supabase: FakeSupabase):
-        fake_supabase.seed_select("profiles", [])
-        fake_supabase.seed_select("medications", [])
-        resp = authed_client.get("/v2/medications")
-        assert resp.status_code == 200
-        assert resp.json() == []
 
     def test_create_with_injection_sites(self, authed_client: TestClient, fake_supabase: FakeSupabase):
         profile_id = str(uuid4())
@@ -292,11 +255,6 @@ class TestMedicationsRouter:
 
 
 class TestDoseEventsRouter:
-    def test_list_filters_by_profile(self, authed_client: TestClient, fake_supabase: FakeSupabase):
-        fake_supabase.seed_select("dose_events", [])
-        resp = authed_client.get("/v2/dose-events", params={"profile_id": str(uuid4())})
-        assert resp.status_code == 200
-
     def test_create_with_injection_site(self, authed_client: TestClient, fake_supabase: FakeSupabase):
         med_id = str(uuid4())
         prof_id = str(uuid4())
@@ -364,21 +322,6 @@ class TestCaregiversRouter:
 
 
 class TestSuppliesRouter:
-    def test_get_returns_null_when_absent(self, authed_client: TestClient, fake_supabase: FakeSupabase):
-        med_id = str(uuid4())
-        prof_id = str(uuid4())
-        # The supplies service joins medications→profiles via Supabase
-        # ``profiles!inner(user_id)`` syntax; the fake returns whatever we
-        # seed, so we embed the joined object directly.
-        fake_supabase.seed_select(
-            "medications",
-            [{"id": med_id, "profile_id": prof_id, "profiles": {"user_id": str(TEST_USER_ID)}}],
-        )
-        fake_supabase.seed_select("supplies", [])
-        resp = authed_client.get(f"/v2/medications/{med_id}/supply")
-        # Route exists and ownership check passed; supplies row absent → 200/null
-        assert resp.status_code == 200
-
     def test_put_accepts_payload_without_medication_id(
         self, authed_client: TestClient, fake_supabase: FakeSupabase
     ):
@@ -550,22 +493,6 @@ class TestDeviceTokensRouter:
     def test_register_ios_payload(self, authed_client: TestClient, fake_supabase: FakeSupabase):
         resp = authed_client.post("/v2/device-tokens", json={"token": "apns-xyz", "platform": "ios"})
         assert resp.status_code in {200, 201}
-
-
-# ---------------------------------------------------------------------------
-# Activity logs
-# ---------------------------------------------------------------------------
-
-
-class TestActivityLogsRouter:
-    def test_create_validates_action_type(self, authed_client: TestClient):
-        resp = authed_client.post("/v2/activity-logs", json={})
-        assert resp.status_code == 422
-
-    def test_list_returns_200(self, authed_client: TestClient, fake_supabase: FakeSupabase):
-        fake_supabase.seed_select("activity_logs", [])
-        resp = authed_client.get("/v2/activity-logs")
-        assert resp.status_code == 200
 
 
 # ---------------------------------------------------------------------------

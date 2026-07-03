@@ -4,17 +4,9 @@ from supabase import Client
 from app.auth.models import AuthenticatedUser
 from app.dependencies import get_current_user, get_supabase
 from app.schemas.device_token import DeviceTokenCreateRequest, DeviceTokenDTO
-from app.services.device_tokens_service import list_tokens, register_token, remove_token
+from app.services.device_tokens_service import register_token, remove_token
 
 router = APIRouter(prefix="/device-tokens", tags=["Device Tokens"])
-
-
-@router.get("", response_model=list[DeviceTokenDTO])
-async def list_tokens_endpoint(
-    user: AuthenticatedUser = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
-):
-    return await list_tokens(supabase, user.user_id)
 
 
 @router.post("", response_model=DeviceTokenDTO, status_code=status.HTTP_201_CREATED)

@@ -4,17 +4,13 @@ Validates the polymorphic value payload against the parameter's value_type
 (predefined or custom). Owns retrieval/filter/CRUD.
 """
 
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from supabase import Client
 
-from app.schemas.measurement import (
-    MeasurementCreateRequest,
-    MeasurementUpdateRequest,
-)
+from app.schemas.measurement import MeasurementCreateRequest
 from app.services._shared import (
     _not_found,
     assert_profile_owned,
@@ -108,33 +104,6 @@ def _validate_payload_against_type(
 # ---------------------------------------------------------------------------
 
 
-async def list_measurements(
-    supabase: Client,
-    user_id: UUID,
-    profile_id: UUID,
-    parameter_key: str | None = None,
-    from_dt: datetime | None = None,
-    to_dt: datetime | None = None,
-    limit: int = 500,
-) -> list[dict]:
-    await assert_profile_owned(supabase, user_id, profile_id)
-    query = (
-        supabase.table("measurements")
-        .select("*")
-        .eq("profile_id", str(profile_id))
-        .order("recorded_at", desc=True)
-        .limit(min(max(limit, 1), 2000))
-    )
-    if parameter_key:
-        query = query.eq("parameter_key", parameter_key)
-    if from_dt:
-        query = query.gte("recorded_at", from_dt.isoformat())
-    if to_dt:
-        query = query.lte("recorded_at", to_dt.isoformat())
-    res = query.execute()
-    return res.data
-
-
 async def create_measurement(
     supabase: Client, user_id: UUID, data: MeasurementCreateRequest
 ) -> dict:
@@ -182,85 +151,3 @@ async def create_measurement(
         },
     )
     return res.data[0]
-
-
-async def get_measurement(
-    supabase: Client, user_id: UUID, measurement_id: UUID
-) -> dict:
-    res = (
-        supabase.table("measurements")
-        .select("*, profiles!inner(user_id)")
-        .eq("id", str(measurement_id))
-        .execute()
-    )
-    if not res.data or res.data[0]["profiles"]["user_id"] != str(user_id):
-        raise _not_found("Measurement not found")
-    row = res.data[0]
-    row.pop("profiles", None)
-    return row
-
-
-async def update_measurement(
-    supabase: Client,
-    user_id: UUID,
-    measurement_id: UUID,
-    data: MeasurementUpdateRequest,
-) -> dict:
-    existing = await get_measurement(supabase, user_id, measurement_id)
-    parameter_key = existing["parameter_key"]
-    profile_id = UUID(existing["profile_id"])
-    meta = await _resolve_parameter(supabase, profile_id, parameter_key)
-
-    payload = data.model_dump(exclude_none=True, mode="json")
-    # If any value field is in the patch, re-validate against the type.
-    if any(
-        f in payload
-        for f in ("value_single", "value_double_1", "value_double_2", "value_text")
-    ):
-        merged = {
-            "value_single": payload.get(
-                "value_single", existing.get("value_single")
-            ),
-            "value_double_1": payload.get(
-                "value_double_1", existing.get("value_double_1")
-            ),
-            "value_double_2": payload.get(
-                "value_double_2", existing.get("value_double_2")
-            ),
-            "value_text": payload.get("value_text", existing.get("value_text")),
-        }
-        _validate_payload_against_type(meta["value_type"], **merged)
-
-    if "recorded_at" in payload and isinstance(
-        payload["recorded_at"], datetime
-    ):
-        payload["recorded_at"] = payload["recorded_at"].isoformat()
-
-    res = (
-        supabase.table("measurements")
-        .update(payload)
-        .eq("id", str(measurement_id))
-        .execute()
-    )
-    await log_activity(
-        supabase,
-        user_id,
-        "measurement_updated",
-        details={"measurement_id": str(measurement_id)},
-    )
-    return res.data[0]
-
-
-async def delete_measurement(
-    supabase: Client, user_id: UUID, measurement_id: UUID
-) -> None:
-    await get_measurement(supabase, user_id, measurement_id)
-    supabase.table("measurements").delete().eq(
-        "id", str(measurement_id)
-    ).execute()
-    await log_activity(
-        supabase,
-        user_id,
-        "measurement_deleted",
-        details={"measurement_id": str(measurement_id)},
-    )

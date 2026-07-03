@@ -74,18 +74,3 @@ class DoseEventBatchCreateRequest(PharmaBaseModel):
 class DoseEventBatchResponse(PharmaBaseModel):
     events: list[DoseEventDTO]
     upserted: int
-
-
-# ---------------------------------------------------------------------------
-# Update request
-# ---------------------------------------------------------------------------
-class DoseEventUpdateRequest(PharmaBaseModel):
-    taken_at: datetime | None = None
-    status: DoseEventStatus | None = None
-    snooze_count: int | None = None
-    actor_device_id: str | None = None
-    auto_registered_at: datetime | None = None
-    user_corrected_at: datetime | None = None
-    note: str | None = None
-    pills_taken: float | None = None
-    injection_site: str | None = None

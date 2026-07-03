@@ -32,9 +32,9 @@ class EmbeddedSupplyCreate(PharmaBaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Inline schedule for bulk medication+schedule creation. Mirrors
-# DosingScheduleCreateRequest minus the medication_id (filled server-side
-# from the freshly-created medication).
+# Inline schedule for bulk medication+schedule creation. Mirrors the
+# dosing_schedules fields (see DosingScheduleDTO) minus the medication_id
+# (filled server-side from the freshly-created medication).
 # ---------------------------------------------------------------------------
 class EmbeddedScheduleCreate(PharmaBaseModel):
     id: UUID | None = None

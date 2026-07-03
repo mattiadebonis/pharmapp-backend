@@ -25,32 +25,18 @@ def _ts() -> str:
 
 
 class TestDoseEventConflictResolution:
-    def test_taken_then_skipped_route_accepts_transition(
+    def test_legacy_event_put_route_is_gone(
         self, authed_client: TestClient, fake_supabase: FakeSupabase
     ):
-        """Schema-level: switching status from taken→skipped is a valid
-        request body (no validation block on retroactive flips)."""
-        from app.schemas.dose_event import DoseEventUpdateRequest
-
-        DoseEventUpdateRequest(status="skipped")
-        DoseEventUpdateRequest(status="taken")
-        DoseEventUpdateRequest(status="snoozed", snooze_count=3)
-
-    def test_event_id_route_does_not_404_on_path(
-        self, authed_client: TestClient, fake_supabase: FakeSupabase
-    ):
-        event_id = str(uuid4())
-        for _ in range(3):
-            r = authed_client.put(
-                f"/v2/dose-events/{event_id}",
-                json={"status": "snoozed", "snooze_count": 1},
-            )
-            # Body validates (≠ 422) and the route exists (404 with
-            # structured envelope == business not-found, accepted).
-            assert r.status_code != 422
-            if r.status_code == 404:
-                body = r.json()
-                assert body.get("detail") != "Not Found", "route missing"
+        # PUT /v2/dose-events/{id} è stato rimosso (audit dead-code): iOS
+        # registra solo via POST (+/batch). I client legacy con PUT in coda
+        # ricevono 404 e la droppano (AppModel flush, handler
+        # "legacy_put_404_dropped").
+        r = authed_client.put(
+            f"/v2/dose-events/{uuid4()}",
+            json={"status": "snoozed", "snooze_count": 1},
+        )
+        assert r.status_code == 404
 
     def test_purchased_at_can_be_set_idempotently(
         self, authed_client: TestClient, fake_supabase: FakeSupabase

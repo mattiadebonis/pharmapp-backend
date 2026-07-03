@@ -12,6 +12,7 @@
       "phone": null,
       "preferenza_canale": null,
       "prescription_message_template": null,
+      "principal_channel": null,
       "profile_ids": [
         "11111111-1111-1111-1111-111111111111"
       ],

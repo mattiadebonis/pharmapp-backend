@@ -100,23 +100,6 @@ class ProfileDTO(PharmaBaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Create request – client-supplied fields only
-# ---------------------------------------------------------------------------
-class ProfileCreateRequest(PharmaBaseModel):
-    id: UUID | None = None
-    profile_type: ProfileType
-    display_name: str
-    birth_date: date | None = None
-    color: str | None = None
-    emoji: str | None = None
-    relation_label: str | None = None
-    connection_status: ConnectionStatus | None = None
-    therapy_paused_at: datetime | None = None
-    critical_only_mode: bool = False
-    anchors: list[ProfileAnchorDTO] | None = None
-
-
-# ---------------------------------------------------------------------------
 # Update request – every field optional
 # ---------------------------------------------------------------------------
 class ProfileUpdateRequest(PharmaBaseModel):

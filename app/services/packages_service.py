@@ -20,13 +20,6 @@ async def _verify_medication_ownership(supabase: Client, user_id: UUID, medicati
         )
 
 
-async def get_packages(supabase: Client, user_id: UUID, medication_id: UUID) -> list[dict]:
-    """Return all packages for a medication (one per dosaggio)."""
-    await _verify_medication_ownership(supabase, user_id, medication_id)
-    result = supabase.table("medication_packages").select("*").eq("medication_id", str(medication_id)).execute()
-    return result.data or []
-
-
 async def replace_packages(supabase: Client, user_id: UUID, medication_id: UUID, data) -> list[dict]:
     """Replace the full set of packages for a medication.
 

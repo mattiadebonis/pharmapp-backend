@@ -23,13 +23,6 @@ async def _verify_medication_ownership(supabase: Client, user_id: UUID, medicati
 # ---------------------------------------------------------------------------
 
 
-async def get_supply(supabase: Client, user_id: UUID, medication_id: UUID) -> dict | None:
-    """Get the supply row for a medication, or None if not yet created."""
-    await _verify_medication_ownership(supabase, user_id, medication_id)
-    result = supabase.table("supplies").select("*").eq("medication_id", str(medication_id)).execute()
-    return result.data[0] if result.data else None
-
-
 async def upsert_supply(supabase: Client, user_id: UUID, medication_id: UUID, data) -> dict:
     """Create or update the supply for a medication (upsert).
 
@@ -69,14 +62,3 @@ async def upsert_supply(supabase: Client, user_id: UUID, medication_id: UUID, da
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         detail={"error": {"code": "supply_insert_failed", "message": "Supply insert returned no row"}},
     )
-
-
-async def delete_supply(supabase: Client, user_id: UUID, medication_id: UUID) -> None:
-    """Delete the supply for a medication."""
-    await _verify_medication_ownership(supabase, user_id, medication_id)
-    result = supabase.table("supplies").delete().eq("medication_id", str(medication_id)).execute()
-    if not result.data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": {"code": "not_found", "message": "Supply not found"}},
-        )

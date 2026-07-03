@@ -93,7 +93,7 @@ class TestRouteAuth:
     rejects missing/invalid tokens with 401 + structured error envelope."""
 
     def test_missing_token_401(self, client: TestClient):
-        resp = client.get("/v2/profiles")
+        resp = client.get("/v2/bootstrap")
         assert resp.status_code in {401, 403}
         body = resp.json()
         # FastAPI's HTTPBearer returns 403 with detail; our wrapper gives
@@ -101,7 +101,7 @@ class TestRouteAuth:
         assert isinstance(body, dict)
 
     def test_invalid_token_401(self, client: TestClient):
-        resp = client.get("/v2/profiles", headers={"Authorization": "Bearer not.a.jwt"})
+        resp = client.get("/v2/bootstrap", headers={"Authorization": "Bearer not.a.jwt"})
         assert resp.status_code == 401
         body = resp.json()
         # FastAPI wraps HTTPException(detail=...) in a `detail` envelope.
@@ -113,7 +113,7 @@ class TestRouteAuth:
         # inject SECRET. Use a token signed with our SECRET — verification
         # should fail with 401 (signature mismatch with real secret).
         token = _hs256_token(exp_offset=3600)
-        resp = client.get("/v2/profiles", headers={"Authorization": f"Bearer {token}"})
+        resp = client.get("/v2/bootstrap", headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 401
 
 

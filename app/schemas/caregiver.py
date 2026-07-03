@@ -51,14 +51,3 @@ class PendingChangeDTO(PharmaBaseModel):
     status: PendingChangeStatus
     expires_at: datetime | None = None
     created_at: datetime
-
-
-# ---------------------------------------------------------------------------
-# PendingChange – create request
-# ---------------------------------------------------------------------------
-class PendingChangeCreateRequest(PharmaBaseModel):
-    caregiver_relation_id: UUID
-    medication_id: UUID | None = None
-    change_type: str
-    payload: dict[str, Any] | None = None
-    expires_at: datetime | None = None

@@ -10,7 +10,6 @@ from app.schemas.caregiver import (
     CaregiverAcceptRequest,
     CaregiverInviteRequest,
     CaregiverRelationDTO,
-    PendingChangeCreateRequest,
     PendingChangeDTO,
 )
 from app.services.caregivers_service import (
@@ -18,8 +17,6 @@ from app.services.caregivers_service import (
     approve_change,
     confirm_invite,
     create_invite,
-    create_pending_change,
-    list_patient_confirmations,
     list_pending_changes,
     list_relations,
     reject_change,
@@ -66,14 +63,6 @@ async def accept_invite_endpoint(
     return await accept_invite(supabase, user.user_id, data.invite_code)
 
 
-@router.get("/confirmations", response_model=list[CaregiverRelationDTO])
-async def list_confirmations_endpoint(
-    user: AuthenticatedUser = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
-):
-    return await list_patient_confirmations(supabase, user.user_id)
-
-
 @router.put("/relations/{relation_id}/confirm", response_model=CaregiverRelationDTO)
 async def confirm_invite_endpoint(
     relation_id: UUID,
@@ -112,20 +101,6 @@ async def list_pending_changes_endpoint(
     supabase: Client = Depends(get_supabase),
 ):
     return await list_pending_changes(supabase, user.user_id)
-
-
-@router.post(
-    "/relations/{relation_id}/changes",
-    response_model=PendingChangeDTO,
-    status_code=status.HTTP_201_CREATED,
-)
-async def create_pending_change_endpoint(
-    relation_id: UUID,
-    data: PendingChangeCreateRequest,
-    user: AuthenticatedUser = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase),
-):
-    return await create_pending_change(supabase, user.user_id, relation_id, data)
 
 
 @router.put("/pending-changes/{change_id}/approve", response_model=PendingChangeDTO)

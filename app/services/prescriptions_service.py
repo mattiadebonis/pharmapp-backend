@@ -118,22 +118,3 @@ async def update_prescription(
             detail={"error": {"code": "not_found", "message": "Prescription not found"}},
         )
     return result.data[0]
-
-
-async def delete_prescription(
-    supabase: Client, user_id: UUID, medication_id: UUID, prescription_id: UUID
-) -> None:
-    """Delete a prescription, verifying medication ownership."""
-    await _verify_medication_ownership(supabase, user_id, medication_id)
-    result = (
-        supabase.table("prescriptions")
-        .delete()
-        .eq("id", str(prescription_id))
-        .eq("medication_id", str(medication_id))
-        .execute()
-    )
-    if not result.data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": {"code": "not_found", "message": "Prescription not found"}},
-        )

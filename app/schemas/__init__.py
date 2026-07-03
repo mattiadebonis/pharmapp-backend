@@ -2,10 +2,6 @@
 # app/schemas – Pydantic schemas for PharmaApp backend
 # ---------------------------------------------------------------------------
 
-from app.schemas.activity_log import (
-    ActivityLogCreateRequest,
-    ActivityLogDTO,
-)
 from app.schemas.base import (
     PharmaBaseModel,
 )
@@ -16,7 +12,6 @@ from app.schemas.caregiver import (
     CaregiverAcceptRequest,
     CaregiverInviteRequest,
     CaregiverRelationDTO,
-    PendingChangeCreateRequest,
     PendingChangeDTO,
 )
 from app.schemas.catalog import (
@@ -36,10 +31,8 @@ from app.schemas.doctor import (
 from app.schemas.dose_event import (
     DoseEventCreateRequest,
     DoseEventDTO,
-    DoseEventUpdateRequest,
 )
 from app.schemas.dosing_schedule import (
-    DosingScheduleCreateRequest,
     DosingScheduleDTO,
     DosingScheduleUpdateRequest,
 )
@@ -55,7 +48,6 @@ from app.schemas.prescription import (
     PrescriptionUpdateRequest,
 )
 from app.schemas.profile import (
-    ProfileCreateRequest,
     ProfileDTO,
     ProfileUpdateRequest,
 )
@@ -74,7 +66,6 @@ __all__ = [
     "PharmaBaseModel",
     # profile
     "ProfileDTO",
-    "ProfileCreateRequest",
     "ProfileUpdateRequest",
     # doctor
     "DoctorDTO",
@@ -87,7 +78,6 @@ __all__ = [
     "MedicationWithDetailsDTO",
     # dosing_schedule
     "DosingScheduleDTO",
-    "DosingScheduleCreateRequest",
     "DosingScheduleUpdateRequest",
     # supply
     "SupplyDTO",
@@ -100,16 +90,11 @@ __all__ = [
     # dose_event
     "DoseEventDTO",
     "DoseEventCreateRequest",
-    "DoseEventUpdateRequest",
     # caregiver
     "CaregiverRelationDTO",
     "CaregiverInviteRequest",
     "CaregiverAcceptRequest",
     "PendingChangeDTO",
-    "PendingChangeCreateRequest",
-    # activity_log
-    "ActivityLogDTO",
-    "ActivityLogCreateRequest",
     # device_token
     "DeviceTokenDTO",
     "DeviceTokenCreateRequest",

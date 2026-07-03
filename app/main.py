@@ -15,7 +15,6 @@ from app.config import get_settings
 from app.middleware.rate_limit import limiter, rate_limit_exceeded_handler
 from app.middleware.request_logging import RequestLoggingMiddleware
 from app.routers import (
-    activity_logs,
     bootstrap,
     caregivers,
     catalog,
@@ -33,7 +32,6 @@ from app.routers import (
     prescription_requests,
     prescriptions,
     profiles,
-    routine_steps,
     routines,
     settings,
     store,
@@ -179,12 +177,10 @@ def create_app() -> FastAPI:
     app.include_router(prescription_requests.router, prefix="/v2")
     app.include_router(dose_events.router, prefix="/v2")
     app.include_router(routines.router, prefix="/v2")
-    app.include_router(routine_steps.router, prefix="/v2")
     app.include_router(parameters.router, prefix="/v2")
     app.include_router(measurements.router, prefix="/v2")
     app.include_router(settings.router, prefix="/v2")
     app.include_router(caregivers.router, prefix="/v2")
-    app.include_router(activity_logs.router, prefix="/v2")
     app.include_router(device_tokens.router, prefix="/v2")
     # Aggregated therapy data + PDF report
     app.include_router(therapy_data.router, prefix="/v2")

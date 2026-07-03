@@ -43,12 +43,3 @@ class MeasurementCreateRequest(PharmaBaseModel):
     routine_id: UUID | None = None
     routine_step_id: UUID | None = None
     note: str | None = Field(None, max_length=200)
-
-
-class MeasurementUpdateRequest(PharmaBaseModel):
-    value_single: float | None = None
-    value_double_1: float | None = None
-    value_double_2: float | None = None
-    value_text: str | None = Field(None, max_length=500)
-    recorded_at: datetime | None = None
-    note: str | None = Field(None, max_length=200)

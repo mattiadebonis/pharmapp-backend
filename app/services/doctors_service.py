@@ -4,17 +4,6 @@ from fastapi import HTTPException, status
 from supabase import Client
 
 
-async def list_doctors(supabase: Client, user_id: UUID) -> list[dict]:
-    """List all doctors belonging to the user."""
-    result = (
-        supabase.table("doctors")
-        .select("*")
-        .eq("user_id", str(user_id))
-        .execute()
-    )
-    return result.data
-
-
 async def create_doctor(supabase: Client, user_id: UUID, data) -> dict:
     """Create a new doctor. Client-provided `id` enables idempotent
     offline-queue retries; child records (medications.prescribing_doctor_id,

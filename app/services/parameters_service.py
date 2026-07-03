@@ -13,7 +13,7 @@ from uuid import UUID
 
 from supabase import Client
 
-from app.schemas.parameter import ParameterCreateRequest, ParameterUpdateRequest
+from app.schemas.parameter import ParameterCreateRequest
 from app.services._shared import (
     _conflict,
     _not_found,
@@ -203,25 +203,6 @@ async def get_custom_parameter(
     row = res.data[0]
     row.pop("profiles", None)
     return {**row, "is_predefined": False}
-
-
-async def update_custom_parameter(
-    supabase: Client,
-    user_id: UUID,
-    parameter_id: UUID,
-    data: ParameterUpdateRequest,
-) -> dict[str, Any]:
-    await get_custom_parameter(supabase, user_id, parameter_id)
-    payload = data.model_dump(exclude_none=True, mode="json")
-    if not payload:
-        return await get_custom_parameter(supabase, user_id, parameter_id)
-    res = (
-        supabase.table("parameters")
-        .update(payload)
-        .eq("id", str(parameter_id))
-        .execute()
-    )
-    return {**res.data[0], "is_predefined": False}
 
 
 async def delete_custom_parameter(

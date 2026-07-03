@@ -44,21 +44,6 @@ def _stringify_datetime(payload: dict, key: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def list_prescription_requests(
-    supabase: Client, user_id: UUID, medication_id: UUID
-) -> list[dict]:
-    """List all prescription requests for a medication (verifying ownership)."""
-    await _verify_medication_ownership(supabase, user_id, medication_id)
-    result = (
-        supabase.table("prescription_requests")
-        .select("*")
-        .eq("medication_id", str(medication_id))
-        .order("sent_at", desc=True)
-        .execute()
-    )
-    return result.data
-
-
 async def create_prescription_request(
     supabase: Client, user_id: UUID, medication_id: UUID, data
 ) -> dict:

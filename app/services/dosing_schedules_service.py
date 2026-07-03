@@ -30,31 +30,6 @@ async def _verify_medication_ownership(
 # ---------------------------------------------------------------------------
 
 
-async def list_dosing_schedules(
-    supabase: Client, user_id: UUID, medication_id: UUID
-) -> list[dict]:
-    """List all dosing schedules for a medication (verifying ownership)."""
-    await _verify_medication_ownership(supabase, user_id, medication_id)
-    result = (
-        supabase.table("dosing_schedules")
-        .select("*")
-        .eq("medication_id", str(medication_id))
-        .execute()
-    )
-    return result.data
-
-
-async def create_dosing_schedule(
-    supabase: Client, user_id: UUID, medication_id: UUID, data
-) -> dict:
-    """Create a dosing schedule for a medication."""
-    await _verify_medication_ownership(supabase, user_id, medication_id)
-    payload = data.model_dump(exclude_none=True, mode="json")
-    payload["medication_id"] = str(medication_id)
-    result = supabase.table("dosing_schedules").insert(payload).execute()
-    return result.data[0]
-
-
 async def get_dosing_schedule(
     supabase: Client, user_id: UUID, medication_id: UUID, schedule_id: UUID
 ) -> dict:
@@ -100,22 +75,3 @@ async def update_dosing_schedule(
             detail={"error": {"code": "not_found", "message": "Dosing schedule not found"}},
         )
     return result.data[0]
-
-
-async def delete_dosing_schedule(
-    supabase: Client, user_id: UUID, medication_id: UUID, schedule_id: UUID
-) -> None:
-    """Delete a dosing schedule, verifying medication ownership."""
-    await _verify_medication_ownership(supabase, user_id, medication_id)
-    result = (
-        supabase.table("dosing_schedules")
-        .delete()
-        .eq("id", str(schedule_id))
-        .eq("medication_id", str(medication_id))
-        .execute()
-    )
-    if not result.data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": {"code": "not_found", "message": "Dosing schedule not found"}},
-        )

@@ -280,23 +280,6 @@ async def list_relations(
     return combined
 
 
-async def list_patient_confirmations(
-    supabase: Client,
-    patient_user_id: UUID,
-) -> list[dict]:
-    """List caregiver links waiting for explicit patient consent."""
-    uid = str(patient_user_id)
-    result = (
-        supabase.table("caregiver_relations")
-        .select("*")
-        .eq("patient_user_id", uid)
-        .eq("status", "patient_confirmation")
-        .order("updated_at", desc=True)
-        .execute()
-    )
-    return result.data
-
-
 # ---------------------------------------------------------------------------
 # Pending changes (approval flow)
 # ---------------------------------------------------------------------------
@@ -326,42 +309,6 @@ async def list_pending_changes(
         .execute()
     )
     return result.data
-
-
-async def create_pending_change(
-    supabase: Client,
-    caregiver_user_id: UUID,
-    relation_id: UUID,
-    data,
-) -> dict:
-    """Create a pending change (proposed by a caregiver).
-
-    The caregiver must belong to the relation and the relation must be active.
-    """
-    uid = str(caregiver_user_id)
-    relation = (
-        supabase.table("caregiver_relations")
-        .select("*")
-        .eq("id", str(relation_id))
-        .eq("caregiver_user_id", uid)
-        .eq("status", "active")
-        .execute()
-    )
-    if not relation.data:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"error": {"code": "forbidden", "message": "Not an active caregiver for this relation"}},
-        )
-    payload = data.model_dump(exclude_none=True, mode="json")
-    payload["caregiver_relation_id"] = str(relation_id)
-    if "expires_at" not in payload:
-        payload["expires_at"] = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
-    elif hasattr(payload["expires_at"], "isoformat"):
-        payload["expires_at"] = payload["expires_at"].isoformat()
-    if payload.get("medication_id"):
-        payload["medication_id"] = str(payload["medication_id"])
-    result = supabase.table("pending_changes").insert(payload).execute()
-    return result.data[0]
 
 
 async def approve_change(

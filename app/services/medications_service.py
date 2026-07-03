@@ -9,17 +9,6 @@ from supabase import Client
 # ---------------------------------------------------------------------------
 
 
-async def _get_profile_ids(supabase: Client, user_id: UUID) -> list[str]:
-    """Return all profile IDs that belong to the given user."""
-    profiles_result = (
-        supabase.table("profiles")
-        .select("id")
-        .eq("user_id", str(user_id))
-        .execute()
-    )
-    return [p["id"] for p in profiles_result.data]
-
-
 async def _verify_medication_ownership(
     supabase: Client, user_id: UUID, medication_id: UUID
 ) -> dict:
@@ -41,20 +30,6 @@ async def _verify_medication_ownership(
 # ---------------------------------------------------------------------------
 # CRUD
 # ---------------------------------------------------------------------------
-
-
-async def list_medications(supabase: Client, user_id: UUID) -> list[dict]:
-    """List all medications for the user (across all their profiles)."""
-    profile_ids = await _get_profile_ids(supabase, user_id)
-    if not profile_ids:
-        return []
-    result = (
-        supabase.table("medications")
-        .select("*")
-        .in_("profile_id", profile_ids)
-        .execute()
-    )
-    return result.data
 
 
 async def create_medication(supabase: Client, user_id: UUID, data) -> dict:
@@ -164,48 +139,6 @@ async def get_medication(supabase: Client, user_id: UUID, medication_id: UUID) -
     # Strip the joined profiles data before returning
     row.pop("profiles", None)
     return row
-
-
-async def get_medication_with_details(
-    supabase: Client, user_id: UUID, medication_id: UUID
-) -> dict:
-    """Get a medication with its dosing schedule, supply, and prescriptions."""
-    row = await _verify_medication_ownership(supabase, user_id, medication_id)
-    row.pop("profiles", None)
-    mid = str(medication_id)
-
-    schedule_r = (
-        supabase.table("dosing_schedules")
-        .select("*")
-        .eq("medication_id", mid)
-        .execute()
-    )
-    supply_r = (
-        supabase.table("supplies")
-        .select("*")
-        .eq("medication_id", mid)
-        .execute()
-    )
-    packages_r = (
-        supabase.table("medication_packages")
-        .select("*")
-        .eq("medication_id", mid)
-        .execute()
-    )
-    prescriptions_r = (
-        supabase.table("prescriptions")
-        .select("*")
-        .eq("medication_id", mid)
-        .execute()
-    )
-
-    return {
-        **row,
-        "schedules": schedule_r.data,
-        "supply": supply_r.data[0] if supply_r.data else None,
-        "packages": packages_r.data or [],
-        "prescriptions": prescriptions_r.data,
-    }
 
 
 async def update_medication(
