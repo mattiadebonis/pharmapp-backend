@@ -43,6 +43,7 @@
       "note": null,
       "pills_taken": null,
       "profile_id": "11111111-1111-1111-1111-111111111111",
+      "rescheduled_from": null,
       "snooze_count": 0,
       "status": "pending",
       "taken_at": null,

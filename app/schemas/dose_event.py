@@ -24,6 +24,9 @@ class DoseEventDTO(PharmaBaseModel):
     taken_at: datetime | None = None
     status: DoseEventStatus
     snooze_count: int = 0
+    # Slot originale della posologia quando la dose è stata spostata
+    # («Sposta orario»); NULL = mai spostata. Vedi migration 052.
+    rescheduled_from: datetime | None = None
     actor_user_id: UUID | None = None
     actor_device_id: str | None = None
     auto_registered_at: datetime | None = None
@@ -47,6 +50,7 @@ class DoseEventCreateRequest(PharmaBaseModel):
     taken_at: datetime | None = None
     status: DoseEventStatus = "pending"
     snooze_count: int = 0
+    rescheduled_from: datetime | None = None
     actor_device_id: str | None = None
     auto_registered_at: datetime | None = None
     user_corrected_at: datetime | None = None

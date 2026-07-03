@@ -29,7 +29,7 @@ def _serialize_event_payload(data, user_id: UUID) -> dict:
     for uuid_field in ("id", "profile_id", "medication_id", "dosing_schedule_id"):
         if payload.get(uuid_field):
             payload[uuid_field] = str(payload[uuid_field]).lower()
-    for dt_field in ("due_at", "taken_at", "auto_registered_at", "user_corrected_at"):
+    for dt_field in ("due_at", "taken_at", "auto_registered_at", "user_corrected_at", "rescheduled_from"):
         if dt_field in payload and hasattr(payload[dt_field], "isoformat"):
             payload[dt_field] = payload[dt_field].isoformat()
     payload["actor_user_id"] = str(user_id)
